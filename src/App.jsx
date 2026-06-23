@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useParams, Link } from 'react-router-dom';
+import AuthPage from './pages/AuthPage';
+import DashboardPage from './pages/DashboardPage';
+import EntityManagerPage from './pages/EntityManagerPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import AppLayout from './components/AppLayout';
 
 function SiswaList() {
   const [students, setStudents] = useState([]);
@@ -27,7 +32,15 @@ function SiswaList() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-8 w-full min-h-screen">
+    <div className="max-w-6xl mx-auto p-8 w-full min-h-screen relative">
+      <div className="absolute top-8 right-8">
+        <Link 
+          to="/login" 
+          className="inline-block bg-slate-900 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-slate-700 transition duration-200"
+        >
+          Masuk ke Dashboard
+        </Link>
+      </div>
       <header className="text-center mb-12 animate-fade-in-down">
         <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-br from-indigo-600 to-pink-500 bg-clip-text text-transparent mb-2">
           Sistem Informasi Sekolah
@@ -64,7 +77,7 @@ function SiswaList() {
                       <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-medium shadow-sm">{student.nis}</span>
                     </td>
                     <td className="p-5 border-b border-slate-200 text-slate-900 font-semibold">{student.nama}</td>
-                    <td className="p-5 border-b border-slate-200 text-slate-900">{student.kelas}</td>
+                    <td className="p-5 border-b border-slate-200 text-slate-900">{student.kelas?.nama_kelas || '-'}</td>
                     <td className="p-5 border-b border-slate-200 text-slate-900">{student.alamat}</td>
                     <td className="p-5 border-b border-slate-200 text-slate-900">{student.email}</td>
                     <td className="p-5 border-b border-slate-200">
@@ -144,7 +157,7 @@ function SiswaDetail() {
             <div className="text-left mb-10">
               <div className="flex py-4 border-b border-slate-200">
                 <span className="flex-none w-36 text-slate-500 font-medium">Kelas</span>
-                <span className="flex-1 text-slate-900 font-semibold">{student.kelas}</span>
+                <span className="flex-1 text-slate-900 font-semibold">{student.kelas?.nama_kelas || '-'}</span>
               </div>
               <div className="flex py-4 border-b border-slate-200">
                 <span className="flex-none w-36 text-slate-500 font-medium">Alamat</span>
@@ -179,8 +192,19 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={<SiswaList />} />
         <Route path="/siswa/:id" element={<SiswaDetail />} />
+        <Route path="/login" element={<AuthPage mode="login" />} />
+        <Route path="/register" element={<AuthPage mode="register" />} />
+
+        {/* Protected Dashboard and Data Management Routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/data/:entity" element={<EntityManagerPage />} />
+          </Route>
+        </Route>
       </Routes>
     </BrowserRouter>
   );
