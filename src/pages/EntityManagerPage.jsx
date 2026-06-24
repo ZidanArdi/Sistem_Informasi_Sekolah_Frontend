@@ -9,8 +9,15 @@ function EntityManagerPage() {
   const { entity } = useParams();
   const config = entityConfigs[entity];
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSiswa = user.role === 'siswa';
+  const isWritable = (() => {
+    const role = (user.role || '').toLowerCase();
+    if (role === 'admin' || role === 'administrator' || role === 'staff_tu' || role === 'staff' || role === 'staff tu') return true;
+    if (role === 'guru') {
+      return entity === 'nilai';
+    }
+    return false; // siswa
+  })();
 
   const [listData, setListData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -171,14 +178,14 @@ function EntityManagerPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Kelola Akademik</p>
-          <h2 className="mt-1 text-3xl font-extrabold text-slate-900 tracking-tight">{config.title}</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-600">Kelola Akademik</p>
+          <h2 className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight">{config.title}</h2>
         </div>
-        {!isSiswa && (
+        {isWritable && (
           <button
             type="button"
             onClick={handleOpenAdd}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 hover:from-indigo-600 hover:to-indigo-500 px-5 py-2.5 text-sm font-bold text-white transition-all duration-300 shadow-md shadow-indigo-500/10 hover:shadow-indigo-500/20 active:scale-95 cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 hover:bg-green-700 px-5 py-2.5 text-sm font-bold text-white transition-all duration-300 shadow-sm shadow-green-500/10 active:scale-95 cursor-pointer"
           >
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -190,10 +197,10 @@ function EntityManagerPage() {
 
       {/* Search & Filters */}
       {(config.searchPlaceholder || config.filters) && (
-        <div className="flex flex-wrap items-center gap-4 rounded-2xl glass-card p-4 shadow-sm border border-slate-200/60">
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-gray-200">
           {config.searchPlaceholder && (
             <div className="w-full sm:max-w-xs relative">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -203,7 +210,7 @@ function EntityManagerPage() {
                 value={search}
                 placeholder={config.searchPlaceholder}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-2.5 text-sm outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-200/80"
+                className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-4 py-2.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
               />
             </div>
           )}
@@ -224,7 +231,7 @@ function EntityManagerPage() {
                 <select
                   value={filterValue}
                   onChange={(e) => handleFilterChange(filter.name, e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-200/80 cursor-pointer"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10 cursor-pointer"
                 >
                   <option value="">Semua {filter.label}</option>
                   {lookupOptions.map((opt) => (
@@ -247,22 +254,22 @@ function EntityManagerPage() {
       ) : listData.length === 0 ? (
         <StateBlock title={`Belum ada data ${config.title}.`} />
       ) : (
-        <div className="overflow-hidden rounded-2xl glass-card shadow-sm border border-slate-200/60">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm border border-gray-200">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50/75 backdrop-blur-sm text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
+            <table className="w-full text-left text-sm text-gray-600">
+              <thead className="bg-green-50 text-xs font-bold uppercase tracking-wider text-gray-700 border-b border-gray-200">
                 <tr>
                   {config.columns.map((col) => (
                     <th key={col.key} className="px-6 py-4.5 font-bold">
                       {col.label}
                     </th>
                   ))}
-                  {!isSiswa && <th className="px-6 py-4.5 text-right font-bold">Aksi</th>}
+                  {isWritable && <th className="px-6 py-4.5 text-right font-bold">Aksi</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200/65 bg-white/60">
+              <tbody className="divide-y divide-gray-150 bg-white/60">
                 {listData.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors duration-150">
+                  <tr key={item.id} className="hover:bg-green-50/50 transition-colors duration-150">
                     {config.columns.map((col) => {
                       const rawVal = getNestedValue(item, col.key);
                       const formatted = formatValue(rawVal);
@@ -284,24 +291,24 @@ function EntityManagerPage() {
                       }
 
                       return (
-                        <td key={col.key} className="px-6 py-4 font-semibold text-slate-900 whitespace-nowrap">
+                        <td key={col.key} className="px-6 py-4 font-semibold text-gray-900 whitespace-nowrap">
                           {formatted}
                         </td>
                       );
                     })}
-                    {!isSiswa && (
+                    {isWritable && (
                       <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handleOpenEdit(item)}
-                          className="inline-flex items-center rounded-lg bg-indigo-50 border border-indigo-100 hover:bg-indigo-600 hover:text-white px-3 py-1.5 text-xs font-bold text-indigo-600 transition-all duration-150 cursor-pointer"
+                          className="inline-flex items-center rounded-lg bg-green-50 border border-green-150 hover:bg-green-600 hover:text-white px-3 py-1.5 text-xs font-bold text-green-700 transition-all duration-150 cursor-pointer"
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(item)}
-                          className="inline-flex items-center rounded-lg bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white px-3 py-1.5 text-xs font-bold text-red-600 transition-all duration-150 cursor-pointer"
+                          className="inline-flex items-center rounded-lg bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white px-3 py-1.5 text-xs font-bold text-red-700 transition-all duration-150 cursor-pointer"
                         >
                           Hapus
                         </button>
@@ -317,15 +324,15 @@ function EntityManagerPage() {
 
       {/* Add / Edit Form Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all duration-300">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl animate-scale-up">
-            <div className="mb-4 border-b border-slate-100 pb-3 flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-950/40 backdrop-blur-sm p-4 transition-all duration-300">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl animate-scale-up">
+            <div className="mb-4 border-b border-gray-100 pb-3 flex items-center justify-between">
+              <h3 className="text-lg font-extrabold text-gray-900 tracking-tight">
                 {editingItem ? 'Edit' : 'Tambah'} {config.shortTitle || config.title}
               </h3>
               <button 
                 onClick={() => setModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
               >
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -352,18 +359,18 @@ function EntityManagerPage() {
                 ))}
               </div>
 
-              <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+              <div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                  className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-750 hover:bg-gray-50 transition cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={formSaving}
-                  className="rounded-xl bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-450 px-5 py-2.5 text-sm font-bold text-white transition shadow-md shadow-slate-950/10 cursor-pointer"
+                  className="rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-gray-400 px-5 py-2.5 text-sm font-bold text-white transition shadow-md shadow-green-500/10 cursor-pointer"
                 >
                   {formSaving ? 'Menyimpan...' : 'Simpan'}
                 </button>

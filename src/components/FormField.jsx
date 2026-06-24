@@ -14,11 +14,11 @@ function buildOptions(field, lookups) {
 }
 
 function FormField({ field, value, onChange, lookups = {} }) {
-  const commonClass = 'mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200';
+  const commonClass = 'mt-1.5 w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10';
 
   if (field.type === 'textarea') {
     return (
-      <label className="block text-sm font-medium text-slate-700">
+      <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
         {field.label}
         <textarea
           value={value}
@@ -33,7 +33,7 @@ function FormField({ field, value, onChange, lookups = {} }) {
 
   if (field.type === 'select') {
     return (
-      <label className="block text-sm font-medium text-slate-700">
+      <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
         {field.label}
         <select
           value={value}
@@ -53,7 +53,7 @@ function FormField({ field, value, onChange, lookups = {} }) {
   }
 
   return (
-    <label className="block text-sm font-medium text-slate-700">
+    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
       {field.label}
       <input
         type={field.type || 'text'}
