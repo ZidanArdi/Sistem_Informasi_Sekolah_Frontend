@@ -8,6 +8,7 @@ import StateBlock from '../components/StateBlock';
 function EntityManagerPage() {
   const { entity } = useParams();
   const config = entityConfigs[entity];
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const isSiswa = user.role === 'siswa';
   const isWritable = (() => {
