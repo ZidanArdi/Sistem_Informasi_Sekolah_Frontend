@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import StateBlock from '../components/StateBlock';
-import { entityService } from '../services/api';
+import api, { entityService } from '../services/api';
+import swalAlert from '../utils/swal';
 
 const endpoints = {
   guru: '/guru',
@@ -21,14 +22,129 @@ function DashboardPage() {
   const [searchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'dashboard';
 
-  // Sub-permit list mock
-  const [permits, setPermits] = useState([
-    { tanggal: '2026-06-15', tipe: 'Sakit', alasan: 'Demam tinggi', status: 'Disetujui' },
-    { tanggal: '2026-06-20', tipe: 'Izin', alasan: 'Acara keluarga', status: 'Disetujui' }
-  ]);
+  // Real database-driven Absensi states
+  const [studentLogs, setStudentLogs] = useState([]);
+  const [pendingPermits, setPendingPermits] = useState([]);
+  const [selectedKelas, setSelectedKelas] = useState('');
+  const [selectedTanggal, setSelectedTanggal] = useState(new Date().toISOString().slice(0, 10));
+  const [attendanceMap, setAttendanceMap] = useState({});
+
   const [newPermitDate, setNewPermitDate] = useState('');
   const [newPermitType, setNewPermitType] = useState('Sakit');
   const [newPermitReason, setNewPermitReason] = useState('');
+
+  const roleNorm = (user.role || '').toLowerCase();
+
+  const fetchStudentAbsensiLogs = async () => {
+    try {
+      const response = await entityService.list('/absensi');
+      setStudentLogs(response.data.data || []);
+    } catch (err) {
+      console.error('Gagal mengambil riwayat absensi:', err);
+    }
+  };
+
+  const fetchPendingPermits = async () => {
+    try {
+      const response = await entityService.list('/absensi', { status_persetujuan: 'Pending' });
+      setPendingPermits(response.data.data || []);
+    } catch (err) {
+      console.error('Gagal mengambil data permohonan izin:', err);
+    }
+  };
+
+  const fetchClassAttendance = async (kelasId, tanggal) => {
+    if (!kelasId || !tanggal) return;
+    try {
+      const response = await entityService.list('/absensi', { kelas_id: kelasId, tanggal });
+      const records = response.data.data || [];
+      const map = {};
+      records.forEach(r => {
+        map[r.siswa_id] = r.status;
+      });
+      setAttendanceMap(map);
+    } catch (err) {
+      console.error('Gagal mengambil absensi kelas:', err);
+    }
+  };
+
+  const handleApproveReject = async (absensiId, statusPersetujuan) => {
+    try {
+      await api.put(`/absensi/${absensiId}/approve`, {
+        status_persetujuan: statusPersetujuan
+      });
+      swalAlert.success(
+        statusPersetujuan === 'Disetujui' ? 'Disetujui' : 'Ditolak',
+        `Permohonan izin berhasil ${statusPersetujuan.toLowerCase()}.`
+      );
+      fetchPendingPermits();
+      if (selectedKelas) {
+        fetchClassAttendance(selectedKelas, selectedTanggal);
+      }
+    } catch (err) {
+      swalAlert.error('Gagal', err.response?.data?.message || 'Terjadi kesalahan saat memproses.');
+    }
+  };
+
+  const handleRadioChange = (siswaId, status) => {
+    setAttendanceMap(prev => ({ ...prev, [siswaId]: status }));
+  };
+
+  const handleSaveAttendance = async () => {
+    if (!selectedKelas) {
+      swalAlert.error('Pilih Kelas', 'Silakan pilih kelas terlebih dahulu.');
+      return;
+    }
+    const studentsInClass = data.siswa?.filter(s => s.kelas_id === Number(selectedKelas)) || [];
+    if (studentsInClass.length === 0) {
+      swalAlert.error('Tidak Ada Siswa', 'Tidak ada siswa terdaftar di kelas yang dipilih.');
+      return;
+    }
+
+    const records = studentsInClass.map(student => ({
+      siswa_id: student.id,
+      status: attendanceMap[student.id] || 'Hadir',
+      status_persetujuan: 'Disetujui'
+    }));
+
+    try {
+      await api.post('/absensi/bulk', {
+        tanggal: selectedTanggal,
+        records: records
+      });
+      swalAlert.success('Berhasil Disimpan', 'Absensi kelas hari ini berhasil disimpan!');
+      fetchClassAttendance(selectedKelas, selectedTanggal);
+    } catch (err) {
+      swalAlert.error('Gagal Menyimpan', err.response?.data?.message || 'Gagal menyimpan absensi kelas.');
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'absensi' || tab === 'absensi-siswa') {
+      if (roleNorm === 'siswa') {
+        fetchStudentAbsensiLogs();
+      } else {
+        fetchPendingPermits();
+        fetchClassAttendance(selectedKelas, selectedTanggal);
+      }
+    }
+  }, [tab, selectedKelas, selectedTanggal]);
+
+  const studentStats = useMemo(() => {
+    const totalDays = studentLogs.filter(log => log.status_persetujuan === 'Disetujui').length;
+    const hadir = studentLogs.filter(log => log.status === 'Hadir' && log.status_persetujuan === 'Disetujui').length;
+    const sakit = studentLogs.filter(log => log.status === 'Sakit' && log.status_persetujuan === 'Disetujui').length;
+    const izin = studentLogs.filter(log => log.status === 'Izin' && log.status_persetujuan === 'Disetujui').length;
+    const alpa = studentLogs.filter(log => log.status === 'Alpa' && log.status_persetujuan === 'Disetujui').length;
+
+    const rate = totalDays > 0 ? Math.round((hadir / totalDays) * 100) : 100;
+    return {
+      rate: `${rate}%`,
+      sakit: `${sakit} Hari`,
+      izin: `${izin} Hari`,
+      alpa: `${alpa} Hari`,
+    };
+  }, [studentLogs]);
 
   const weekDays = useMemo(() => {
     const current = new Date(selectedDate);
@@ -356,16 +472,23 @@ function DashboardPage() {
 
 
 
-  const handleAddPermit = (e) => {
+  const handleAddPermit = async (e) => {
     e.preventDefault();
     if (!newPermitDate || !newPermitReason) return;
-    setPermits([
-      { tanggal: newPermitDate, tipe: newPermitType, alasan: newPermitReason, status: 'Pending' },
-      ...permits
-    ]);
-    setNewPermitDate('');
-    setNewPermitReason('');
-    alert('Permohonan izin berhasil dikirim!');
+    try {
+      await entityService.create('/absensi', {
+        tanggal: newPermitDate,
+        status: newPermitType, // Sakit or Izin
+        keterangan: newPermitReason,
+        status_persetujuan: 'Pending'
+      });
+      setNewPermitDate('');
+      setNewPermitReason('');
+      swalAlert.success('Permohonan Terkirim', 'Permohonan izin Anda berhasil dikirim ke wali kelas.');
+      fetchStudentAbsensiLogs();
+    } catch (err) {
+      swalAlert.error('Gagal Mengajukan Izin', err.response?.data?.message || 'Terjadi kesalahan pada server.');
+    }
   };
 
   const renderTabContent = () => {
@@ -645,9 +768,9 @@ function DashboardPage() {
     // TAB: ABSENSI / ABSENSI SISWA
     // ----------------------------------------------------
     if (tab === 'absensi' || tab === 'absensi-siswa') {
-      const isGuru = roleNorm === 'guru';
+      const isGuru = roleNorm === 'guru' || roleNorm === 'admin' || roleNorm === 'staff' || roleNorm === 'administrator';
       return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in-up">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-600">Presensi</p>
@@ -665,19 +788,19 @@ function DashboardPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-green-50/50 border border-green-150 p-4 rounded-2xl text-center">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Hadir</span>
-                      <strong className="text-2xl font-extrabold text-green-700 block mt-1">96%</strong>
+                      <strong className="text-2xl font-extrabold text-green-700 block mt-1">{studentStats.rate}</strong>
                     </div>
                     <div className="bg-blue-50/50 border border-blue-150 p-4 rounded-2xl text-center">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Sakit</span>
-                      <strong className="text-2xl font-extrabold text-blue-700 block mt-1">2 Hari</strong>
+                      <strong className="text-2xl font-extrabold text-blue-700 block mt-1">{studentStats.sakit}</strong>
                     </div>
                     <div className="bg-amber-50/50 border border-amber-150 p-4 rounded-2xl text-center">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Izin</span>
-                      <strong className="text-2xl font-extrabold text-amber-600 block mt-1">1 Hari</strong>
+                      <strong className="text-2xl font-extrabold text-amber-600 block mt-1">{studentStats.izin}</strong>
                     </div>
                     <div className="bg-red-50/50 border border-red-150 p-4 rounded-2xl text-center">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Alpa</span>
-                      <strong className="text-2xl font-extrabold text-red-700 block mt-1">0 Hari</strong>
+                      <strong className="text-2xl font-extrabold text-red-700 block mt-1">{studentStats.alpa}</strong>
                     </div>
                   </div>
                 </div>
@@ -700,7 +823,7 @@ function DashboardPage() {
                       <select 
                         value={newPermitType}
                         onChange={(e) => setNewPermitType(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-green-500"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-green-500 cursor-pointer"
                       >
                         <option value="Sakit">Sakit</option>
                         <option value="Izin">Izin (Keperluan Khusus)</option>
@@ -741,88 +864,198 @@ function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-150 bg-white/60">
-                      {permits.map((p, idx) => (
-                        <tr key={idx} className="hover:bg-green-50/50 transition">
-                          <td className="p-4 font-semibold text-gray-900">{p.tanggal}</td>
-                          <td className="p-4">
-                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                              p.tipe === 'Sakit' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                            }`}>
-                              {p.tipe}
-                            </span>
-                          </td>
-                          <td className="p-4 font-medium text-gray-700">{p.alasan}</td>
-                          <td className="p-4 text-right">
-                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
-                              p.status === 'Disetujui' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-50 text-gray-700 border border-gray-200'
-                            }`}>
-                              {p.status}
-                            </span>
-                          </td>
+                      {studentLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" className="p-8 text-center text-gray-400 font-medium">Belum ada riwayat permohonan izin/sakit.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        studentLogs.map((p, idx) => (
+                          <tr key={p.id || idx} className="hover:bg-green-50/50 transition">
+                            <td className="p-4 font-semibold text-gray-900">{p.tanggal}</td>
+                            <td className="p-4">
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                p.status === 'Sakit' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}>
+                                {p.status}
+                              </span>
+                            </td>
+                            <td className="p-4 font-medium text-gray-700">{p.keterangan}</td>
+                            <td className="p-4 text-right">
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
+                                p.status_persetujuan === 'Disetujui' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                p.status_persetujuan === 'Ditolak' ? 'bg-red-50 text-red-750 border border-red-150' :
+                                'bg-gray-100 text-gray-700 border border-gray-200'
+                              }`}>
+                                {p.status_persetujuan}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
             </div>
           ) : (
-            // Guru view: Input Absensi Siswa
-            <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-200 space-y-6 text-left">
-              <div className="flex flex-wrap items-center gap-4 justify-between border-b border-gray-150 pb-4">
-                <div className="flex gap-4">
-                  <select className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 outline-none transition focus:border-green-500 cursor-pointer">
-                    <option value="">Pilih Kelas</option>
-                    <option value="1">Kelas XI-MIPA-1</option>
-                    <option value="2">Kelas XI-MIPA-2</option>
-                  </select>
-                  <input 
-                    type="date" 
-                    defaultValue={new Date().toISOString().slice(0,10)}
-                    className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 outline-none transition focus:border-green-500" 
-                  />
+            // Guru & Admin view
+            <div className="space-y-6">
+              {/* Approval Table Section */}
+              {pendingPermits.length > 0 && (
+                <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-200 space-y-4 text-left">
+                  <h3 className="text-lg font-extrabold text-amber-800 border-b border-gray-150 pb-2">
+                    Menunggu Persetujuan Izin / Sakit ({pendingPermits.length})
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-gray-650 border-collapse">
+                      <thead className="bg-amber-50/55 text-xs font-bold uppercase tracking-wider text-amber-800 border-b border-gray-200">
+                        <tr>
+                          <th className="p-4 font-bold">Tanggal</th>
+                          <th className="p-4 font-bold">Siswa</th>
+                          <th className="p-4 font-bold">Kelas</th>
+                          <th className="p-4 font-bold">Tipe</th>
+                          <th className="p-4 font-bold">Alasan</th>
+                          <th className="p-4 font-bold text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-150 bg-white/60">
+                        {pendingPermits.map((p) => (
+                          <tr key={p.id} className="hover:bg-amber-50/10 transition">
+                            <td className="p-4 font-semibold text-gray-900">{p.tanggal}</td>
+                            <td className="p-4 font-bold text-gray-800">{p.siswa?.nama}</td>
+                            <td className="p-4 font-semibold text-gray-700">{p.siswa?.kelas?.nama_kelas || '-'}</td>
+                            <td className="p-4">
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                p.status === 'Sakit' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}>
+                                {p.status}
+                              </span>
+                            </td>
+                            <td className="p-4 font-medium text-gray-700">{p.keterangan}</td>
+                            <td className="p-4 text-right space-x-2 whitespace-nowrap">
+                              <button 
+                                onClick={() => handleApproveReject(p.id, 'Disetujui')}
+                                className="bg-green-50 hover:bg-green-600 hover:text-white border border-green-200 text-green-700 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                              >
+                                Setujui
+                              </button>
+                              <button 
+                                onClick={() => handleApproveReject(p.id, 'Ditolak')}
+                                className="bg-red-50 hover:bg-red-600 hover:text-white border border-red-200 text-red-750 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                              >
+                                Tolak
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-                <button 
-                  onClick={() => alert('Absensi kelas hari ini berhasil disimpan!')}
-                  className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
-                >
-                  Simpan Absensi Kelas
-                </button>
-              </div>
+              )}
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-gray-600">
-                  <thead className="bg-green-50 text-xs font-bold uppercase tracking-wider text-gray-700 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-4.5 font-bold">NIS</th>
-                      <th className="px-6 py-4.5 font-bold">Nama Lengkap</th>
-                      <th className="px-6 py-4.5 font-bold text-center">Hadir</th>
-                      <th className="px-6 py-4.5 font-bold text-center">Sakit</th>
-                      <th className="px-6 py-4.5 font-bold text-center">Izin</th>
-                      <th className="px-6 py-4.5 font-bold text-center">Alpa</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-150 bg-white/60">
-                    {data.siswa?.map((student, idx) => (
-                      <tr key={idx} className="hover:bg-green-50/50 transition">
-                        <td className="px-6 py-4 font-bold text-gray-900">{student.nis}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-800">{student.nama}</td>
-                        <td className="px-6 py-4 text-center">
-                          <input type="radio" name={`att-${student.nis}`} defaultChecked className="h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500 cursor-pointer" />
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <input type="radio" name={`att-${student.nis}`} className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer" />
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <input type="radio" name={`att-${student.nis}`} className="h-4 w-4 text-amber-600 border-gray-300 focus:ring-amber-500 cursor-pointer" />
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <input type="radio" name={`att-${student.nis}`} className="h-4 w-4 text-red-600 border-gray-300 focus:ring-red-500 cursor-pointer" />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {/* Input Absensi Siswa */}
+              <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-200 space-y-6 text-left">
+                <div className="flex flex-wrap items-center gap-4 justify-between border-b border-gray-150 pb-4">
+                  <div className="flex gap-4">
+                    <select 
+                      value={selectedKelas}
+                      onChange={(e) => setSelectedKelas(e.target.value)}
+                      className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 outline-none transition focus:border-green-500 cursor-pointer"
+                    >
+                      <option value="">Pilih Kelas</option>
+                      {data.kelas?.map((k) => (
+                        <option key={k.id} value={k.id}>{k.nama_kelas}</option>
+                      ))}
+                    </select>
+                    <input 
+                      type="date" 
+                      value={selectedTanggal}
+                      onChange={(e) => setSelectedTanggal(e.target.value)}
+                      className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 outline-none transition focus:border-green-500 cursor-pointer" 
+                    />
+                  </div>
+                  <button 
+                    onClick={handleSaveAttendance}
+                    className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
+                  >
+                    Simpan Absensi Kelas
+                  </button>
+                </div>
+
+                {!selectedKelas ? (
+                  <div className="p-8 text-center text-gray-400 font-medium bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                    Silakan pilih kelas terlebih dahulu untuk mengisi absensi.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-gray-600 border-collapse">
+                      <thead className="bg-green-50 text-xs font-bold uppercase tracking-wider text-gray-700 border-b border-gray-200">
+                        <tr>
+                          <th className="px-6 py-4.5 font-bold">NIS</th>
+                          <th className="px-6 py-4.5 font-bold">Nama Lengkap</th>
+                          <th className="px-6 py-4.5 font-bold text-center">Hadir</th>
+                          <th className="px-6 py-4.5 font-bold text-center">Sakit</th>
+                          <th className="px-6 py-4.5 font-bold text-center">Izin</th>
+                          <th className="px-6 py-4.5 font-bold text-center">Alpa</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-150 bg-white/60">
+                        {data.siswa?.filter(student => student.kelas_id === Number(selectedKelas)).length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="p-8 text-center text-gray-400 font-medium">Belum ada siswa terdaftar di kelas ini.</td>
+                          </tr>
+                        ) : (
+                          data.siswa?.filter(student => student.kelas_id === Number(selectedKelas)).map((student, idx) => {
+                            const currentStatus = attendanceMap[student.id] || 'Hadir';
+                            return (
+                              <tr key={student.id || idx} className="hover:bg-green-50/50 transition">
+                                <td className="px-6 py-4 font-bold text-gray-900">{student.nis}</td>
+                                <td className="px-6 py-4 font-semibold text-gray-800">{student.nama}</td>
+                                <td className="px-6 py-4 text-center">
+                                  <input 
+                                    type="radio" 
+                                    name={`att-${student.id}`} 
+                                    checked={currentStatus === 'Hadir'}
+                                    onChange={() => handleRadioChange(student.id, 'Hadir')}
+                                    className="h-4.5 w-4.5 text-green-600 border-gray-300 focus:ring-green-500 cursor-pointer" 
+                                  />
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <input 
+                                    type="radio" 
+                                    name={`att-${student.id}`} 
+                                    checked={currentStatus === 'Sakit'}
+                                    onChange={() => handleRadioChange(student.id, 'Sakit')}
+                                    className="h-4.5 w-4.5 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer" 
+                                  />
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <input 
+                                    type="radio" 
+                                    name={`att-${student.id}`} 
+                                    checked={currentStatus === 'Izin'}
+                                    onChange={() => handleRadioChange(student.id, 'Izin')}
+                                    className="h-4.5 w-4.5 text-amber-600 border-gray-300 focus:ring-amber-500 cursor-pointer" 
+                                  />
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <input 
+                                    type="radio" 
+                                    name={`att-${student.id}`} 
+                                    checked={currentStatus === 'Alpa'}
+                                    onChange={() => handleRadioChange(student.id, 'Alpa')}
+                                    className="h-4.5 w-4.5 text-red-600 border-gray-300 focus:ring-red-500 cursor-pointer" 
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -970,13 +1203,13 @@ function DashboardPage() {
                   <p className="text-xs font-medium text-gray-500 leading-relaxed">{r.desc}</p>
                   <div className="pt-2 flex gap-3">
                     <button 
-                      onClick={() => alert(`Sedang mendownload PDF ${r.title}...`)}
+                      onClick={() => swalAlert.success('Download PDF', `Sedang menyiapkan file PDF untuk ${r.title}...`)}
                       className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer"
                     >
                       Download PDF
                     </button>
                     <button 
-                      onClick={() => alert(`Sedang mengekspor Excel ${r.title}...`)}
+                      onClick={() => swalAlert.success('Ekspor Excel', `Sedang menyusun file Excel untuk ${r.title}...`)}
                       className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer border border-gray-250"
                     >
                       Ekspor Excel
@@ -1044,7 +1277,7 @@ function DashboardPage() {
               <h2 className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight text-left">User Management</h2>
             </div>
             <button 
-              onClick={() => alert('Fungsi ini membutuhkan integrasi backend lebih lanjut.')}
+              onClick={() => swalAlert.error('Dalam Pengembangan', 'Fungsi ini membutuhkan integrasi backend lebih lanjut.')}
               className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
             >
               Tambah Pengguna Baru
@@ -1073,10 +1306,10 @@ function DashboardPage() {
                       </td>
                       <td className="px-6 py-4 font-semibold text-green-700 text-left">{usr.status}</td>
                       <td className="px-6 py-4 text-right space-x-2">
-                        <button onClick={() => alert('Fitur ubah role berhasil dibuka')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-250 transition cursor-pointer">
+                        <button onClick={() => swalAlert.success('Ubah Role', 'Fitur ubah role berhasil dibuka.')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-250 transition cursor-pointer">
                           Edit Role
                         </button>
-                        <button onClick={() => alert(`Reset password untuk ${usr.email} berhasil dikirim ke email terkait`)} className="bg-red-50 hover:bg-red-650 hover:text-white text-red-750 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-100 transition cursor-pointer">
+                        <button onClick={() => swalAlert.success('Reset Password', `Reset password untuk ${usr.email} berhasil dikirim ke email terkait.`)} className="bg-red-50 hover:bg-red-650 hover:text-white text-red-750 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-100 transition cursor-pointer">
                           Reset Password
                         </button>
                       </td>
@@ -1113,7 +1346,7 @@ function DashboardPage() {
               <h2 className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight text-left">Role Permissions</h2>
             </div>
             <button 
-              onClick={() => alert('Perubahan hak akses berhasil disimpan!')}
+              onClick={() => swalAlert.success('Hak Akses', 'Perubahan hak akses berhasil disimpan!')}
               className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
             >
               Simpan Perubahan
@@ -1170,7 +1403,7 @@ function DashboardPage() {
               <h2 className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight text-left">System Settings</h2>
             </div>
             <button 
-              onClick={() => alert('Semua pengaturan sistem berhasil disimpan!')}
+              onClick={() => swalAlert.success('Pengaturan', 'Semua pengaturan sistem berhasil disimpan!')}
               className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
             >
               Simpan Pengaturan
@@ -1220,7 +1453,7 @@ function DashboardPage() {
                     <h4 className="text-sm font-extrabold text-gray-900">Backup Database</h4>
                     <p className="text-xs text-gray-500 font-medium leading-relaxed">Ekspor seluruh database sekolah dalam format SQL (.sql) untuk keperluan backup berkala.</p>
                     <button 
-                      onClick={() => alert('SQL backup berhasil dibuat! Mengunduh backup_sekolah_2026.sql...')}
+                      onClick={() => swalAlert.success('Backup Database', 'SQL backup berhasil dibuat! Mengunduh backup_sekolah_2026.sql...')}
                       className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
                     >
                       🚀 Jalankan Backup

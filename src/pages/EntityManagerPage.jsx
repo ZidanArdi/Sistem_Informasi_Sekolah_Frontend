@@ -4,6 +4,7 @@ import { entityConfigs, getNestedValue, formatValue, buildInitialValues } from '
 import { entityService } from '../services/api';
 import FormField from '../components/FormField';
 import StateBlock from '../components/StateBlock';
+import swalAlert from '../utils/swal';
 
 function EntityManagerPage() {
   const { entity } = useParams();
@@ -163,15 +164,22 @@ function EntityManagerPage() {
   };
 
   const handleDelete = async (item) => {
-    const message = `Apakah Anda yakin ingin menghapus data ini?`;
-    if (!window.confirm(message)) return;
-
-    try {
-      await entityService.remove(config.endpoint, item.id);
-      fetchData();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Gagal menghapus data');
-    }
+    swalAlert.confirm(
+      'Hapus Data',
+      `Apakah Anda yakin ingin menghapus data ${config.shortTitle || config.title} ini?`,
+      'Ya, Hapus',
+      'Batal'
+    ).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await entityService.remove(config.endpoint, item.id);
+          swalAlert.success('Berhasil', 'Data berhasil dihapus');
+          fetchData();
+        } catch (err) {
+          swalAlert.error('Gagal', err.response?.data?.message || 'Gagal menghapus data');
+        }
+      }
+    });
   };
 
   return (

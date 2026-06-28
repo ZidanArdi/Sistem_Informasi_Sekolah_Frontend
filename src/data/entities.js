@@ -81,6 +81,7 @@ export const entityConfigs = {
       { name: 'jenis_kelamin', label: 'Jenis Kelamin', type: 'select', options: genderOptions, required: true },
       { name: 'tempat_lahir', label: 'Tempat Lahir', required: true },
       { name: 'tanggal_lahir', label: 'Tanggal Lahir', type: 'date', required: true },
+      { name: 'email', label: 'Email', type: 'email', required: true },
       { name: 'alamat', label: 'Alamat', type: 'textarea', required: true },
       { name: 'kelas_id', label: 'Kelas', type: 'select', optionsSource: 'kelas', optionLabel: 'nama_kelas', optionSubLabel: 'tingkat', required: true },
     ],
@@ -89,6 +90,7 @@ export const entityConfigs = {
       { key: 'nama', label: 'Nama' },
       { key: 'jenis_kelamin', label: 'JK' },
       { key: 'kelas.nama_kelas', label: 'Kelas' },
+      { key: 'email', label: 'Email' },
       { key: 'alamat', label: 'Alamat' },
     ],
     transformSubmit: (values) => ({
