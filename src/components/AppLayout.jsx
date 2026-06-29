@@ -249,9 +249,7 @@ function AppLayout() {
       <aside className="fixed inset-y-0 left-0 hidden w-68 glass-sidebar bg-white px-4 py-6 lg:flex flex-col z-30 border-r border-gray-200">
         {/* Logo/Brand */}
         <div className="mb-8 px-4 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-extrabold text-lg shadow-lg shadow-green-500/25">
-            S
-          </div>
+          <img src="/favicon.svg" alt="Logo" className="h-9 w-9 object-contain" />
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-green-600">Portal Akademik</p>
             <h1 className="text-md font-extrabold text-gray-950 tracking-wide">Sistem Informasi</h1>
@@ -374,9 +372,7 @@ function AppLayout() {
         <header className="sticky top-0 z-20 border-b border-gray-200 bg-white text-gray-900 px-4 py-3 lg:hidden shadow-sm">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md">
-                S
-              </div>
+              <img src="/favicon.svg" alt="Logo" className="h-8 w-8 object-contain" />
               <div>
                 <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-green-600">Portal Akademik</p>
                 <p className="font-extrabold text-xs tracking-wide text-gray-900">Sistem Informasi</p>

@@ -55,9 +55,7 @@ function AuthPage({ mode }) {
 
         {/* Brand Logo Header */}
         <div className="relative flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-green-500/25">
-            S
-          </div>
+          <img src="/favicon.svg" alt="Logo" className="h-10 w-10 object-contain filter invert-0 brightness-110" />
           <div>
             <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-green-400">Portal Akademik</span>
             <h1 className="text-sm font-extrabold text-white tracking-wide">Sistem Informasi Sekolah</h1>
