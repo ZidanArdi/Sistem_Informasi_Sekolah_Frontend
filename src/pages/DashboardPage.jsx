@@ -13,6 +13,21 @@ const endpoints = {
   nilai: '/nilai',
 };
 
+const getInitials = (name) => {
+  if (!name) return '';
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+};
+
+const getIndonesianDayName = () => {
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  return days[new Date().getDay()];
+};
+
 function DashboardPage() {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -33,7 +48,102 @@ function DashboardPage() {
   const [newPermitType, setNewPermitType] = useState('Sakit');
   const [newPermitReason, setNewPermitReason] = useState('');
 
+  const [dashboardStats, setDashboardStats] = useState({});
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [perizinanList, setPerizinanList] = useState([]);
+  const [loadingPerizinan, setLoadingPerizinan] = useState(false);
+
+  // Form states for Siswa submitting perizinan
+  const [newPermitStartDate, setNewPermitStartDate] = useState('');
+  const [newPermitEndDate, setNewPermitEndDate] = useState('');
+  const [newPermitAttachment, setNewPermitAttachment] = useState('');
+
+  // States for Guru processing perizinan
+  const [guruNotesMap, setGuruNotesMap] = useState({}); // mapping ID to note string
+
   const roleNorm = (user.role || '').toLowerCase();
+
+  const fetchDashboardStats = async () => {
+    setLoadingDashboard(true);
+    try {
+      let url = '';
+      if (roleNorm === 'admin') url = '/admin/dashboard';
+      else if (roleNorm === 'guru') url = '/guru/dashboard';
+      else if (roleNorm === 'siswa') url = '/siswa/dashboard';
+
+      if (url) {
+        const response = await api.get(url);
+        setDashboardStats(response.data.data || {});
+      }
+    } catch (err) {
+      console.error('Gagal memuat dasbor statistik:', err);
+    } finally {
+      setLoadingDashboard(false);
+    }
+  };
+
+  const fetchPerizinan = async () => {
+    setLoadingPerizinan(true);
+    try {
+      const response = await api.get('/perizinan');
+      setPerizinanList(response.data.data || []);
+    } catch (err) {
+      console.error('Gagal mengambil data perizinan:', err);
+    } finally {
+      setLoadingPerizinan(false);
+    }
+  };
+
+  const handleCreatePerizinan = async (e) => {
+    e.preventDefault();
+    if (!newPermitStartDate || !newPermitEndDate || !newPermitReason) {
+      swalAlert.error('Form Tidak Lengkap', 'Silakan isi seluruh kolom tanggal dan alasan.');
+      return;
+    }
+
+    try {
+      const payload = {
+        tanggal_mulai: new Date(newPermitStartDate).toISOString(),
+        tanggal_selesai: new Date(newPermitEndDate).toISOString(),
+        tipe: newPermitType,
+        alasan: newPermitReason,
+        attachment_url: newPermitAttachment ? newPermitAttachment : null
+      };
+
+      await api.post('/perizinan', payload);
+      swalAlert.success('Berhasil Diajukan', 'Permohonan perizinan Anda telah berhasil dikirim ke guru.');
+      
+      // Clear form
+      setNewPermitStartDate('');
+      setNewPermitEndDate('');
+      setNewPermitReason('');
+      setNewPermitAttachment('');
+      
+      // Refresh list
+      fetchPerizinan();
+    } catch (err) {
+      swalAlert.error('Gagal Mengajukan', err.response?.data?.message || 'Terjadi kesalahan saat menyimpan.');
+    }
+  };
+
+  const handleProcessPerizinan = async (id, status) => {
+    try {
+      const note = guruNotesMap[id] || '';
+      await api.put(`/perizinan/${id}/approve`, {
+        status: status,
+        keterangan_guru: note
+      });
+      swalAlert.success('Berhasil', `Permohonan perizinan berhasil ${status.toLowerCase()}.`);
+      
+      // Clear note
+      setGuruNotesMap(prev => ({ ...prev, [id]: '' }));
+      
+      // Refresh list
+      fetchPerizinan();
+    } catch (err) {
+      swalAlert.error('Gagal', err.response?.data?.message || 'Terjadi kesalahan saat memproses.');
+    }
+  };
 
   const fetchStudentAbsensiLogs = async () => {
     try {
@@ -127,8 +237,12 @@ function DashboardPage() {
         fetchPendingPermits();
         fetchClassAttendance(selectedKelas, selectedTanggal);
       }
+    } else if (tab === 'dashboard') {
+      fetchDashboardStats();
+    } else if (tab === 'perizinan') {
+      fetchPerizinan();
     }
-  }, [tab, selectedKelas, selectedTanggal]);
+  }, [tab, roleNorm, selectedKelas, selectedTanggal]);
 
   const studentStats = useMemo(() => {
     const totalDays = studentLogs.filter(log => log.status_persetujuan === 'Disetujui').length;
@@ -346,14 +460,30 @@ function DashboardPage() {
       setError('');
 
       try {
-        const entries = await Promise.all(
-          Object.entries(endpoints).map(async ([key, endpoint]) => {
-            const response = await entityService.list(endpoint);
-            return [key, response.data.data || []];
-          }),
-        );
+        if (roleNorm === 'admin') {
+          // Admin: fetch all entities lists for charts/stats
+          const entries = await Promise.all(
+            Object.entries(endpoints).map(async ([key, endpoint]) => {
+              const response = await entityService.list(endpoint);
+              return [key, response.data.data || []];
+            }),
+          );
+          setData(Object.fromEntries(entries));
 
-        setData(Object.fromEntries(entries));
+          // Also fetch admin dashboard stats
+          const dbResponse = await api.get('/admin/dashboard');
+          setDashboardStats(dbResponse.data.data || {});
+        } else {
+          // Guru or Siswa: only fetch their specific dashboard
+          let url = '';
+          if (roleNorm === 'guru') url = '/guru/dashboard';
+          else if (roleNorm === 'siswa') url = '/siswa/dashboard';
+
+          if (url) {
+            const response = await api.get(url);
+            setDashboardStats(response.data.data || {});
+          }
+        }
       } catch (err) {
         setError(err.response?.data?.message || 'Gagal memuat dashboard');
       } finally {
@@ -362,7 +492,7 @@ function DashboardPage() {
     };
 
     fetchStats();
-  }, []);
+  }, [roleNorm]);
 
   const stats = useMemo(() => {
     const nilai = data.nilai || [];
@@ -775,6 +905,14 @@ function DashboardPage() {
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-600">Presensi</p>
               <h2 className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight text-left">Kehadiran & Absensi</h2>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3.5 text-left">
+            <span className="text-xl shrink-0 mt-0.5">⚠️</span>
+            <div>
+              <h4 className="text-sm font-bold text-amber-800">Fitur dalam Tahap Pengembangan</h4>
+              <p className="text-xs text-amber-750 mt-1 leading-relaxed">Fitur absensi siswa dan rekapitulasi data kehadiran saat ini sedang dalam tahap pengembangan dan sinkronisasi database.</p>
             </div>
           </div>
 
@@ -1203,13 +1341,13 @@ function DashboardPage() {
                   <p className="text-xs font-medium text-gray-500 leading-relaxed">{r.desc}</p>
                   <div className="pt-2 flex gap-3">
                     <button 
-                      onClick={() => swalAlert.success('Download PDF', `Sedang menyiapkan file PDF untuk ${r.title}...`)}
+                      onClick={() => swalAlert.info('Dalam Pengembangan', 'Fitur cetak laporan PDF saat ini sedang dalam tahap pengembangan.')}
                       className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer"
                     >
                       Download PDF
                     </button>
                     <button 
-                      onClick={() => swalAlert.success('Ekspor Excel', `Sedang menyusun file Excel untuk ${r.title}...`)}
+                      onClick={() => swalAlert.info('Dalam Pengembangan', 'Fitur ekspor laporan Excel saat ini sedang dalam tahap pengembangan.')}
                       className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer border border-gray-250"
                     >
                       Ekspor Excel
@@ -1468,7 +1606,290 @@ function DashboardPage() {
     }
 
     // ----------------------------------------------------
-    // TAB: DEFAULT DASHBOARD (Admin & Staff TU)
+    // TAB: PERIZINAN (Sakit / Izin)
+    // ----------------------------------------------------
+    if (tab === 'perizinan') {
+      return (
+        <div className="space-y-6 animate-fade-in-up">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-600">Layanan Siswa</p>
+              <h2 className="mt-1 text-3xl font-extrabold text-gray-900 tracking-tight text-left">Permohonan Izin & Sakit</h2>
+            </div>
+          </div>
+
+          {roleNorm === 'siswa' && (
+            <div className="grid gap-6 md:grid-cols-3">
+              {/* Form Pengajuan */}
+              <div className="md:col-span-1 rounded-3xl bg-white p-6 shadow-sm border border-gray-200 text-left h-fit space-y-4">
+                <h3 className="text-lg font-extrabold text-gray-950 border-b border-gray-150 pb-2">Ajukan Surat Sakit / Izin</h3>
+                <form onSubmit={handleCreatePerizinan} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Tipe Perizinan</label>
+                    <select
+                      value={newPermitType}
+                      onChange={(e) => setNewPermitType(e.target.value)}
+                      className="w-full rounded-xl border border-gray-250 bg-white px-4 py-2.5 text-sm font-medium text-gray-950 focus:border-green-500 focus:outline-none"
+                    >
+                      <option value="Sakit">Sakit</option>
+                      <option value="Izin">Izin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Tanggal Mulai</label>
+                    <input
+                      type="date"
+                      value={newPermitStartDate}
+                      onChange={(e) => setNewPermitStartDate(e.target.value)}
+                      required
+                      className="w-full rounded-xl border border-gray-250 bg-white px-4 py-2.5 text-sm font-medium text-gray-950 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Tanggal Selesai</label>
+                    <input
+                      type="date"
+                      value={newPermitEndDate}
+                      onChange={(e) => setNewPermitEndDate(e.target.value)}
+                      required
+                      className="w-full rounded-xl border border-gray-250 bg-white px-4 py-2.5 text-sm font-medium text-gray-950 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Alasan Perizinan</label>
+                    <textarea
+                      value={newPermitReason}
+                      onChange={(e) => setNewPermitReason(e.target.value)}
+                      required
+                      rows={3}
+                      placeholder="Masukkan alasan detail..."
+                      className="w-full rounded-xl border border-gray-250 bg-white px-4 py-2.5 text-sm font-medium text-gray-950 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">URL Dokumen Pendukung (Opsional)</label>
+                    <input
+                      type="url"
+                      value={newPermitAttachment}
+                      onChange={(e) => setNewPermitAttachment(e.target.value)}
+                      placeholder="https://drive.google.com/..."
+                      className="w-full rounded-xl border border-gray-250 bg-white px-4 py-2.5 text-sm font-medium text-gray-950 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl transition duration-150 active:scale-[0.98] cursor-pointer"
+                  >
+                    Ajukan Sekarang
+                  </button>
+                </form>
+              </div>
+
+              {/* Riwayat Pengajuan */}
+              <div className="md:col-span-2 rounded-3xl bg-white p-6 shadow-sm border border-gray-200 text-left space-y-4">
+                <h3 className="text-lg font-extrabold text-gray-950 border-b border-gray-150 pb-2">Riwayat Pengajuan Izin Anda</h3>
+                {loadingPerizinan ? (
+                  <p className="text-sm text-gray-400 py-12 text-center">Memuat riwayat perizinan...</p>
+                ) : perizinanList.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-12 text-center font-medium">Belum ada pengajuan izin/sakit.</p>
+                ) : (
+                  <div className="space-y-4 overflow-y-auto max-h-[500px] pr-2">
+                    {perizinanList.map((p) => (
+                      <div key={p.id} className="p-4 rounded-2xl border border-gray-200 space-y-3 bg-gray-50/50 hover:bg-gray-50 transition">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              p.tipe === 'Sakit' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}>
+                              {p.tipe}
+                            </span>
+                            <span className="text-xs text-gray-400 font-semibold">
+                              {new Date(p.tanggal_mulai).toLocaleDateString('id-ID')} s.d {new Date(p.tanggal_selesai).toLocaleDateString('id-ID')}
+                            </span>
+                          </div>
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
+                            p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : p.status === 'Disetujui' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {p.status}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-extrabold text-gray-950">Alasan:</h4>
+                          <p className="text-xs font-medium text-gray-600 leading-relaxed">{p.alasan}</p>
+                        </div>
+                        {p.attachment_url && (
+                          <a
+                            href={p.attachment_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-green-600 hover:text-green-700 font-bold inline-flex items-center gap-1.5"
+                          >
+                            📎 Lihat Dokumen Pendukung
+                          </a>
+                        )}
+                        {p.status !== 'Pending' && (
+                          <div className="pt-2 border-t border-gray-200 text-[11px] text-gray-500 font-semibold space-y-1">
+                            <p>Diproses oleh: <strong className="text-gray-800">{p.guru?.nama || 'Guru'}</strong></p>
+                            {p.keterangan_guru && <p>Catatan Guru: <span className="italic text-gray-600">"{p.keterangan_guru}"</span></p>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {roleNorm === 'guru' && (
+            <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-200 text-left space-y-4">
+              <h3 className="text-lg font-extrabold text-gray-950 border-b border-gray-150 pb-2">Pengajuan Perizinan Siswa (Menunggu Persetujuan)</h3>
+              {loadingPerizinan ? (
+                <p className="text-sm text-gray-400 py-12 text-center">Memuat data perizinan...</p>
+              ) : perizinanList.length === 0 ? (
+                <p className="text-sm text-gray-400 py-12 text-center font-medium">Tidak ada permohonan pending saat ini.</p>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {perizinanList.map((p) => (
+                    <div key={p.id} className="p-5 rounded-2xl border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition flex flex-col justify-between space-y-4">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start gap-4">
+                          <div>
+                            <h4 className="font-extrabold text-gray-950 text-base">{p.siswa?.nama}</h4>
+                            <p className="text-xs text-gray-500 font-medium mt-0.5">NIS: {p.siswa?.nis} | Kelas: {p.siswa?.kelas?.nama_kelas || '-'}</p>
+                          </div>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                            p.tipe === 'Sakit' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}>
+                            {p.tipe}
+                          </span>
+                        </div>
+                        <div className="text-xs font-semibold text-gray-500">
+                          Rentang Tanggal: {new Date(p.tanggal_mulai).toLocaleDateString('id-ID')} s.d {new Date(p.tanggal_selesai).toLocaleDateString('id-ID')}
+                        </div>
+                        <div className="p-3 bg-white rounded-xl border border-gray-150 text-xs text-gray-600 font-medium leading-relaxed">
+                          <strong className="block text-gray-950 mb-1">Alasan:</strong>
+                          {p.alasan}
+                        </div>
+                        {p.attachment_url && (
+                          <a
+                            href={p.attachment_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-green-600 hover:text-green-700 font-bold inline-flex items-center gap-1.5 pt-1"
+                          >
+                            📎 Lihat Dokumen Pendukung
+                          </a>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-3 pt-3 border-t border-gray-200">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Catatan Guru (Opsional)</label>
+                          <input
+                            type="text"
+                            value={guruNotesMap[p.id] || ''}
+                            onChange={(e) => setGuruNotesMap(prev => ({ ...prev, [p.id]: e.target.value }))}
+                            placeholder="Tulis alasan jika menolak, atau catatan persetujuan..."
+                            className="w-full rounded-xl border border-gray-250 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-950 focus:border-green-500 focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleProcessPerizinan(p.id, 'Disetujui')}
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-xs py-2 rounded-xl transition cursor-pointer"
+                          >
+                            Setujui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleProcessPerizinan(p.id, 'Ditolak')}
+                            className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs py-2 rounded-xl transition cursor-pointer"
+                          >
+                            Tolak
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {roleNorm === 'admin' && (
+            <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-200 text-left space-y-4">
+              <h3 className="text-lg font-extrabold text-gray-950 border-b border-gray-150 pb-2">Monitoring Seluruh Perizinan Siswa</h3>
+              {loadingPerizinan ? (
+                <p className="text-sm text-gray-400 py-12 text-center">Memuat data perizinan...</p>
+              ) : perizinanList.length === 0 ? (
+                <p className="text-sm text-gray-400 py-12 text-center font-medium">Belum ada data permohonan perizinan di sistem.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-2xl border border-gray-200">
+                  <table className="w-full border-collapse bg-white text-left text-xs text-gray-500">
+                    <thead className="bg-gray-50 font-bold text-gray-700 uppercase tracking-wider text-[10px]">
+                      <tr>
+                        <th className="px-6 py-4">Siswa</th>
+                        <th className="px-6 py-4">Kelas</th>
+                        <th className="px-6 py-4">Tanggal Izin</th>
+                        <th className="px-6 py-4">Tipe</th>
+                        <th className="px-6 py-4">Alasan</th>
+                        <th className="px-6 py-4">Berkas</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4">Guru Approval</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 font-medium">
+                      {perizinanList.map((p) => (
+                        <tr key={p.id} className="hover:bg-gray-50 transition">
+                          <td className="px-6 py-4 font-bold text-gray-900">{p.siswa?.nama}</td>
+                          <td className="px-6 py-4">{p.siswa?.kelas?.nama_kelas || '-'}</td>
+                          <td className="px-6 py-4">
+                            {new Date(p.tanggal_mulai).toLocaleDateString('id-ID')} s.d {new Date(p.tanggal_selesai).toLocaleDateString('id-ID')}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              p.tipe === 'Sakit' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
+                            }`}>
+                              {p.tipe}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 max-w-xs truncate" title={p.alasan}>{p.alasan}</td>
+                          <td className="px-6 py-4">
+                            {p.attachment_url ? (
+                              <a href={p.attachment_url} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline font-bold">Lihat Berkas</a>
+                            ) : '-'}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : p.status === 'Disetujui' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {p.guru?.nama ? (
+                              <div>
+                                <p className="font-bold text-gray-800">{p.guru.nama}</p>
+                                {p.keterangan_guru && <p className="text-[10px] text-gray-400 italic">"{p.keterangan_guru}"</p>}
+                              </div>
+                            ) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // TAB: DEFAULT DASHBOARD (Admin, Guru, Siswa Role-based)
     // ----------------------------------------------------
     return (
       <div className="space-y-8">
@@ -1489,143 +1910,223 @@ function DashboardPage() {
             </div>
             <div className="flex gap-2">
               <span className="inline-flex items-center rounded-xl bg-green-50 border border-green-200/50 px-3.5 py-2 text-sm font-semibold text-green-700">
-                Role: <strong className="ml-1 capitalize">{user.role || 'staff'}</strong>
+                Role: <strong className="ml-1 capitalize">{user.role || 'siswa'}</strong>
               </span>
             </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((item) => (
-            <div key={item.label} className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 border border-gray-200 text-left">
-              <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${item.color} transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300`} />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{item.label}</p>
-                  <p className="mt-3 text-3xl font-extrabold text-gray-900 tracking-tight">{item.value}</p>
+        {/* Dashboard Content based on Role */}
+        {roleNorm === 'admin' && (
+          <div className="space-y-8">
+            {/* Stats Cards */}
+            <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-5">
+              {[
+                { label: 'Total Siswa', value: dashboardStats.total_siswa || 0, desc: 'Siswa aktif terdaftar', color: 'from-green-500 to-emerald-600', icon: '👥' },
+                { label: 'Total Guru', value: dashboardStats.total_guru || 0, desc: 'Tenaga pengajar aktif', color: 'from-emerald-500 to-teal-500', icon: '👨‍🏫' },
+                { label: 'Total Kelas', value: dashboardStats.total_kelas || 0, desc: 'Ruang kelas belajar', color: 'from-green-600 to-emerald-700', icon: '🏫' },
+                { label: 'Total Mapel', value: dashboardStats.total_mapel || 0, desc: 'Mata pelajaran diajarkan', color: 'from-teal-600 to-emerald-600', icon: '📖' },
+                { label: 'Perizinan Pending', value: dashboardStats.total_perizinan_pending || 0, desc: 'Surat pending persetujuan', color: 'from-amber-500 to-orange-500', icon: '⚠️' }
+              ].map((item) => (
+                <div key={item.label} className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 border border-gray-200 text-left">
+                  <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${item.color} transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300`} />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{item.label}</p>
+                      <p className="mt-3 text-3xl font-extrabold text-gray-900 tracking-tight">{item.value}</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-sm text-xl">
+                      {item.icon}
+                    </div>
+                  </div>
+                  <p className="mt-4 text-xs font-medium text-gray-500">{item.desc}</p>
                 </div>
-                <div className="h-12 w-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                  {item.icon}
-                </div>
-              </div>
-              <p className="mt-4 text-xs font-medium text-gray-500">{item.desc}</p>
-            </div>
-          ))}
-        </section>
+              ))}
+            </section>
 
-        {/* Calendar & Notice Board Section */}
-        <section className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-sm border border-gray-200 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
-                <button type="button" onClick={handlePrevWeek} className="h-9 w-9 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 flex items-center justify-center cursor-pointer transition text-gray-500 active:scale-95">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                </button>
-                <h3 className="font-extrabold text-gray-900 text-lg tracking-tight select-none">{formattedMonthYear}</h3>
-                <button type="button" onClick={handleNextWeek} className="h-9 w-9 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 flex items-center justify-center cursor-pointer transition text-gray-500 active:scale-95">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-5 gap-2 mb-6">
-                {weekDays.map((day, idx) => {
-                  const active = isSelectedDay(day);
-                  return (
-                    <button key={idx} type="button" onClick={() => setSelectedDate(day)} className={`flex flex-col items-center py-2 px-1 rounded-xl transition duration-150 active:scale-95 cursor-pointer ${active ? 'bg-green-50 text-green-700 border border-green-200/60 shadow-sm font-extrabold' : 'hover:bg-gray-50 text-gray-700 border border-transparent'}`}>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 select-none">{dayLabels[day.getDay()]}</span>
-                      <span className="text-sm font-extrabold mt-1 select-none">{day.getDate()}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-3.5">
-                {selectedDaySchedules.length === 0 ? (
-                  <p className="text-sm text-gray-400 py-8 text-center font-medium">Tidak ada jadwal pelajaran untuk hari ini.</p>
-                ) : (
-                  selectedDaySchedules.map((sched, idx) => (
-                    <div key={idx} className="flex items-center p-4 rounded-xl border-l-4 border-green-600 bg-green-50/20 transition duration-150">
-                      <div className="w-24 font-extrabold text-sm text-gray-900 pr-2">{sched.jam_mulai}</div>
-                      <div className="flex-1 pl-4 border-l border-gray-200/60 text-left">
-                        <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{sched.kelas?.nama_kelas || 'Umum'}</p>
-                        <h4 className="text-sm font-extrabold text-gray-900 mt-0.5">{sched.mapel?.nama_mapel}</h4>
-                        <p className="text-xs text-gray-500 mt-1 font-medium">Pengajar: {sched.guru?.nama || '-'}</p>
+            {/* Charts Section */}
+            <section className="grid gap-6 xl:grid-cols-2">
+              <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left">
+                <h3 className="font-extrabold text-gray-900 text-base border-b border-gray-100 pb-4 mb-6">Sebaran Siswa per Kelas</h3>
+                <div className="space-y-4">
+                  {siswaPerKelas.map((item) => (
+                    <div key={item.label}>
+                      <div className="mb-1.5 flex justify-between text-xs font-bold text-gray-700">
+                        <span>{item.label}</span>
+                        <span>{item.count} Siswa</span>
                       </div>
+                      <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
+                        <div className="h-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 transition-all duration-1000" style={{ width: item.width }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left">
+                <h3 className="font-extrabold text-gray-900 text-base border-b border-gray-100 pb-4 mb-6">Rata-rata Nilai per Mapel</h3>
+                <div className="space-y-4">
+                  {rataNilaiMapel.map((item) => (
+                    <div key={item.label}>
+                      <div className="mb-1.5 flex justify-between text-xs font-bold text-gray-700">
+                        <span>{item.label}</span>
+                        <span>{item.value} / 100</span>
+                      </div>
+                      <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
+                        <div className="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-1000" style={{ width: item.width }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {roleNorm === 'guru' && (
+          <div className="space-y-8">
+            {/* Stats Cards */}
+            <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-2">
+              {[
+                { label: 'Total Siswa', value: dashboardStats.total_siswa || 0, desc: 'Siswa terdaftar di sekolah', color: 'from-green-500 to-emerald-600', icon: '👥' },
+                { label: 'Perizinan Siswa Pending', value: dashboardStats.total_perizinan_pending || 0, desc: 'Pengajuan menunggu approval Anda', color: 'from-amber-500 to-orange-500', icon: '⚠️' }
+              ].map((item) => (
+                <div key={item.label} className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 border border-gray-200 text-left">
+                  <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${item.color} transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300`} />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{item.label}</p>
+                      <p className="mt-3 text-3xl font-extrabold text-gray-900 tracking-tight">{item.value}</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-sm text-xl">
+                      {item.icon}
+                    </div>
+                  </div>
+                  <p className="mt-4 text-xs font-medium text-gray-500">{item.desc}</p>
+                </div>
+              ))}
+            </section>
+
+            {/* Schedule & Actions */}
+            <section className="grid gap-6 md:grid-cols-3">
+              <div className="md:col-span-2 rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left space-y-4">
+                <h3 className="font-extrabold text-gray-900 text-base border-b border-gray-100 pb-2">Jadwal Mengajar Hari Ini ({getIndonesianDayName()})</h3>
+                <div className="space-y-3.5">
+                  {!dashboardStats.jadwal_hari_ini || dashboardStats.jadwal_hari_ini.length === 0 ? (
+                    <p className="text-sm text-gray-400 py-8 text-center font-medium">Tidak ada jadwal mengajar hari ini.</p>
+                  ) : (
+                    dashboardStats.jadwal_hari_ini.map((sched, idx) => (
+                      <div key={idx} className="flex items-center p-4 rounded-xl border-l-4 border-emerald-600 bg-green-50/10 transition duration-150">
+                        <div className="w-24 font-extrabold text-sm text-gray-900 pr-2">{sched.jam_mulai} - {sched.jam_selesai}</div>
+                        <div className="flex-1 pl-4 border-l border-gray-200/60 text-left">
+                          <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{sched.kelas?.nama_kelas || 'Umum'}</p>
+                          <h4 className="text-sm font-extrabold text-gray-900 mt-0.5">{sched.mapel?.nama_mapel}</h4>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="md:col-span-1 rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left space-y-4 flex flex-col justify-between">
+                <div>
+                  <h3 className="font-extrabold text-gray-900 text-base border-b border-gray-100 pb-2">Persetujuan Perizinan</h3>
+                  <p className="text-xs text-gray-500 mt-3 leading-relaxed">
+                    Terdapat <strong className="text-amber-600">{dashboardStats.total_perizinan_pending || 0} pengajuan perizinan</strong> siswa yang menunggu persetujuan Anda.
+                  </p>
+                </div>
+                <Link
+                  to="/dashboard?tab=perizinan"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl transition text-center text-xs block cursor-pointer"
+                >
+                  Proses Perizinan
+                </Link>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {roleNorm === 'siswa' && (
+          <div className="space-y-8">
+            {/* Student Dashboard Grid */}
+            <section className="grid gap-6 md:grid-cols-3">
+              {/* Profile Card */}
+              <div className="md:col-span-1 rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left space-y-4">
+                <h3 className="font-extrabold text-gray-900 text-base border-b border-gray-100 pb-2">Profil Singkat</h3>
+                {dashboardStats.profil_siswa ? (
+                  <div className="space-y-3">
+                    <div className="h-16 w-16 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-2xl">
+                      {getInitials(dashboardStats.profil_siswa.nama)}
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-gray-950 text-base">{dashboardStats.profil_siswa.nama}</h4>
+                      <p className="text-xs text-gray-500">NIS: {dashboardStats.profil_siswa.nis}</p>
+                      <p className="text-xs text-gray-500">Kelas: {dashboardStats.profil_siswa.kelas?.nama_kelas || '-'}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">Memuat profil...</p>
+                )}
+              </div>
+
+              {/* Today's Schedule */}
+              <div className="md:col-span-2 rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left space-y-4">
+                <h3 className="font-extrabold text-gray-900 text-base border-b border-gray-100 pb-2">Jadwal Pelajaran Hari Ini ({getIndonesianDayName()})</h3>
+                <div className="space-y-3">
+                  {!dashboardStats.jadwal_hari_ini || dashboardStats.jadwal_hari_ini.length === 0 ? (
+                    <p className="text-sm text-gray-400 py-8 text-center font-medium">Tidak ada jadwal pelajaran hari ini.</p>
+                  ) : (
+                    dashboardStats.jadwal_hari_ini.map((sched, idx) => (
+                      <div key={idx} className="flex items-center p-4 rounded-xl border-l-4 border-green-600 bg-green-50/10 transition duration-150">
+                        <div className="w-24 font-extrabold text-sm text-gray-900 pr-2">{sched.jam_mulai} - {sched.jam_selesai}</div>
+                        <div className="flex-1 pl-4 border-l border-gray-200/60 text-left">
+                          <h4 className="text-sm font-extrabold text-gray-900">{sched.mapel?.nama_mapel}</h4>
+                          <p className="text-[10px] text-gray-500 mt-1 font-semibold">Guru: {sched.guru?.nama || '-'}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* Recent Permits */}
+            <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <h3 className="font-extrabold text-gray-900 text-base">Riwayat Perizinan Terakhir</h3>
+                <Link to="/dashboard?tab=perizinan" className="text-xs font-bold text-green-600 hover:text-green-700">Lihat Semua &rarr;</Link>
+              </div>
+              <div className="space-y-3">
+                {!dashboardStats.riwayat_perizinan || dashboardStats.riwayat_perizinan.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-8 text-center font-medium">Belum ada riwayat permohonan perizinan.</p>
+                ) : (
+                  dashboardStats.riwayat_perizinan.map((p) => (
+                    <div key={p.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                            p.tipe === 'Sakit' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
+                          }`}>
+                            {p.tipe}
+                          </span>
+                          <span className="text-xs text-gray-500 font-semibold">
+                            {new Date(p.tanggal_mulai).toLocaleDateString('id-ID')} s.d {new Date(p.tanggal_selesai).toLocaleDateString('id-ID')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 font-medium">{p.alasan}</p>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                        p.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : p.status === 'Disetujui' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {p.status}
+                      </span>
                     </div>
                   ))
                 )}
               </div>
-            </div>
+            </section>
           </div>
-
-          <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200 flex flex-col justify-between text-left">
-            <div>
-              <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
-                <h3 className="font-extrabold text-gray-900 text-base">Notice Board</h3>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-blue-50/20 border border-blue-100">
-                  <div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 font-extrabold text-sm shrink-0">📢</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-xs font-extrabold text-gray-900 truncate">Math Olympiad Competition</h4>
-                      <span className="text-[10px] text-gray-400 font-bold">24 Jun</span>
-                    </div>
-                    <p className="text-[11px] text-gray-500 font-medium mt-1">Oleh: M.A Jackson (Math Teacher)</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-green-50/20 border border-green-100">
-                  <div className="h-9 w-9 rounded-lg bg-green-100 flex items-center justify-center text-green-700 font-extrabold text-sm shrink-0">🔬</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-xs font-extrabold text-gray-900 truncate">Science Fair Registration</h4>
-                      <span className="text-[10px] text-gray-400 font-bold">22 Jun</span>
-                    </div>
-                    <p className="text-[11px] text-gray-500 font-medium mt-1">Oleh: Science Department</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Charts Section */}
-        <section className="grid gap-6 xl:grid-cols-2">
-          <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left">
-            <h3 className="font-extrabold text-gray-900 text-base border-b border-gray-100 pb-4 mb-6">Sebaran Siswa per Kelas</h3>
-            <div className="space-y-4">
-              {siswaPerKelas.map((item) => (
-                <div key={item.label}>
-                  <div className="mb-1.5 flex justify-between text-xs font-bold text-gray-700">
-                    <span>{item.label}</span>
-                    <span>{item.count} Siswa</span>
-                  </div>
-                  <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
-                    <div className="h-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 transition-all duration-1000" style={{ width: item.width }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left">
-            <h3 className="font-extrabold text-gray-900 text-base border-b border-gray-100 pb-4 mb-6">Rata-rata Nilai per Mapel</h3>
-            <div className="space-y-4">
-              {rataNilaiMapel.map((item) => (
-                <div key={item.label}>
-                  <div className="mb-1.5 flex justify-between text-xs font-bold text-gray-700">
-                    <span>{item.label}</span>
-                    <span>{item.value} / 100</span>
-                  </div>
-                  <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
-                    <div className="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-1000" style={{ width: item.width }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        )}
       </div>
     );
   };

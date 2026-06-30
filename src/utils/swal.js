@@ -27,6 +27,19 @@ export const swalAlert = {
     });
   },
 
+  info: (title, text = '') => {
+    return Swal.fire({
+      icon: 'info',
+      title: title,
+      text: text,
+      confirmButtonColor: '#3b82f6', // blue-500
+      customClass: {
+        popup: 'rounded-2xl',
+        confirmButton: 'rounded-xl font-bold px-6 py-2.5 text-sm',
+      }
+    });
+  },
+
   confirm: (title, text = '', confirmText = 'Ya, Lanjutkan', cancelText = 'Batal') => {
     return Swal.fire({
       icon: 'question',

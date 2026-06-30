@@ -92,6 +92,12 @@ const getIcon = (key) => {
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       );
+    case 'perizinan':
+      return (
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -184,6 +190,7 @@ function AppLayout() {
           { label: 'Jadwal Pelajaran', to: '/dashboard?tab=jadwal-pelajaran', icon: 'jadwal' },
           { label: 'Nilai Akademik', to: '/dashboard?tab=nilai-akademik', icon: 'nilai' },
           { label: 'Absensi', to: '/dashboard?tab=absensi', icon: 'absensi' },
+          { label: 'Perizinan', to: '/dashboard?tab=perizinan', icon: 'perizinan' },
           { label: 'Pengumuman', to: '/dashboard?tab=pengumuman', icon: 'pengumuman' },
         ];
       case 'guru':
@@ -195,22 +202,8 @@ function AppLayout() {
           { label: 'Data Siswa', to: '/dashboard?tab=data-siswa', icon: 'siswa' },
           { label: 'Input Nilai', to: '/data/nilai', icon: 'nilai' },
           { label: 'Absensi Siswa', to: '/dashboard?tab=absensi', icon: 'absensi' },
+          { label: 'Perizinan Siswa', to: '/dashboard?tab=perizinan', icon: 'perizinan' },
           { label: 'Pengumuman', to: '/dashboard?tab=pengumuman', icon: 'pengumuman' },
-        ];
-      case 'staff_tu':
-      case 'staff':
-      case 'staff-tu':
-      case 'tu':
-        return [
-          { label: 'Menu Utama', type: 'header' },
-          { label: 'Dashboard', to: '/dashboard', icon: 'dashboard' },
-          { label: 'Kelola Data', type: 'header' },
-          { label: 'Data Guru', to: '/data/guru', icon: 'guru' },
-          { label: 'Data Siswa', to: '/data/siswa', icon: 'siswa' },
-          { label: 'Data Kelas', to: '/data/kelas', icon: 'kelas' },
-          { label: 'Mata Pelajaran', to: '/data/mapel', icon: 'mapel' },
-          { label: 'Jadwal', to: '/data/jadwal', icon: 'jadwal' },
-          { label: 'Laporan', to: '/dashboard?tab=laporan', icon: 'laporan' },
         ];
       case 'admin':
       case 'administrator':
@@ -226,6 +219,7 @@ function AppLayout() {
           { label: 'Data Kelas', to: '/data/kelas', icon: 'kelas' },
           { label: 'Mata Pelajaran', to: '/data/mapel', icon: 'mapel' },
           { label: 'Jadwal', to: '/data/jadwal', icon: 'jadwal' },
+          { label: 'Perizinan', to: '/dashboard?tab=perizinan', icon: 'perizinan' },
           { label: 'Laporan', to: '/dashboard?tab=laporan', icon: 'laporan' },
           { label: 'System Settings', to: '/dashboard?tab=system-settings', icon: 'system-settings' },
         ];
