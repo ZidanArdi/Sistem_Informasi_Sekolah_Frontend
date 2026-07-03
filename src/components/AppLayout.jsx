@@ -305,7 +305,7 @@ function AppLayout() {
               </div>
               <div className="text-left leading-tight">
                 <p className="text-sm font-bold text-gray-900">{user.nama || 'Pengguna'}</p>
-                <p className="text-[11px] font-semibold text-gray-500 capitalize">{user.role || 'staff'}</p>
+                <p className="text-[11px] font-semibold text-gray-500 capitalize">{user.role || 'pengguna'}</p>
               </div>
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4 text-gray-400 ml-1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />

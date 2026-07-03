@@ -9,7 +9,7 @@ function AuthPage({ mode }) {
     nama: '',
     email: '',
     password: '',
-    role: 'staff',
+    role: 'siswa',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +28,13 @@ function AuthPage({ mode }) {
 
         localStorage.setItem('token', response.data.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.data.user));
-        navigate('/dashboard', { replace: true });
+        
+        const loggedUser = response.data.data.user;
+        if (loggedUser.is_first_login) {
+          navigate('/change-password', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
         return;
       }
 
@@ -113,12 +119,14 @@ function AuthPage({ mode }) {
             )}
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">Alamat Email</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
+                {isLogin ? 'Email atau NIS' : 'Alamat Email'}
+              </label>
               <input
-                type="email"
+                type={isLogin ? 'text' : 'email'}
                 value={form.email}
                 required
-                placeholder="operator@sekolah.com"
+                placeholder={isLogin ? 'Masukkan Email atau NIS' : 'operator@sekolah.com'}
                 onChange={(event) => updateForm('email', event.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
               />
@@ -145,9 +153,8 @@ function AuthPage({ mode }) {
                   onChange={(event) => updateForm('role', event.target.value)}
                   className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10 cursor-pointer"
                 >
-                  <option value="staff">Staff Tata Usaha (TU)</option>
-                  <option value="guru">Guru Pengajar</option>
                   <option value="siswa">Siswa Akademik</option>
+                  <option value="guru">Guru Pengajar</option>
                   <option value="admin">Administrator Sistem</option>
                 </select>
               </div>

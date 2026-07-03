@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useParams, Link } from 'reac
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import EntityManagerPage from './pages/EntityManagerPage';
+import ForceChangePasswordPage from './pages/ForceChangePasswordPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 
@@ -262,6 +263,7 @@ function App() {
 
         {/* Protected Dashboard and Data Management Routes */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/change-password" element={<ForceChangePasswordPage />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/data/:entity" element={<EntityManagerPage />} />

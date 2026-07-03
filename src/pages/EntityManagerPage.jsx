@@ -14,7 +14,7 @@ function EntityManagerPage() {
   const isSiswa = user.role === 'siswa';
   const isWritable = (() => {
     const role = (user.role || '').toLowerCase();
-    if (role === 'admin' || role === 'administrator' || role === 'staff_tu' || role === 'staff' || role === 'staff tu') return true;
+    if (role === 'admin' || role === 'administrator') return true;
     if (role === 'guru') {
       return entity === 'nilai';
     }
@@ -151,8 +151,41 @@ function EntityManagerPage() {
       const payload = config.transformSubmit ? config.transformSubmit(formValues) : formValues;
       if (editingItem) {
         await entityService.update(config.endpoint, editingItem.id, payload);
+        swalAlert.success('Berhasil', 'Data berhasil diubah');
       } else {
-        await entityService.create(config.endpoint, payload);
+        const response = await entityService.create(config.endpoint, payload);
+        if (response && response.data && response.data.temporary_password) {
+          const tempPass = response.data.temporary_password;
+          const nameStr = response.data.data.nama;
+          if (config.endpoint === '/siswa') {
+            const nisStr = response.data.data.nis;
+            swalAlert.info(
+              'Akun Siswa Berhasil Dibuat',
+              `Siswa ${nameStr} berhasil didaftarkan!\n\nNIS: ${nisStr}\nPassword Sementara: ${tempPass}\n\nHarap catat dan berikan kredensial ini kepada siswa untuk login pertama kali.`
+            );
+          } else if (config.endpoint === '/guru') {
+            const nipStr = response.data.data.nip;
+            const emailStr = response.data.data.user?.email || '';
+            swalAlert.info(
+              'Akun Guru Berhasil Dibuat',
+              `Guru ${nameStr} berhasil didaftarkan!\n\nNIP: ${nipStr}\nEmail Login: ${emailStr}\nPassword Sementara: ${tempPass}\n\nHarap catat dan berikan kredensial ini kepada guru untuk login pertama kali.`
+            );
+          } else {
+            swalAlert.info(
+              'Akun Berhasil Dibuat',
+              `User ${nameStr} berhasil didaftarkan!\n\nPassword Sementara: ${tempPass}`
+            );
+          }
+        } else if (response && response.data && response.data.data && response.data.data.nip) {
+          const nipStr = response.data.data.nip;
+          const nameStr = response.data.data.nama;
+          swalAlert.success(
+            'Guru Berhasil Ditambahkan',
+            `Guru ${nameStr} berhasil ditambahkan dengan NIP: ${nipStr}`
+          );
+        } else {
+          swalAlert.success('Berhasil', 'Data berhasil disimpan');
+        }
       }
       setModalOpen(false);
       fetchData();

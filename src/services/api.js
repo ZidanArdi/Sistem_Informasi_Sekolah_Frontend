@@ -34,6 +34,7 @@ export const authService = {
   login: (payload) => api.post('/auth/login', payload),
   register: (payload) => api.post('/auth/register', payload),
   changePassword: (payload) => api.put('/auth/change-password', payload),
+  changePasswordGuru: (payload) => api.put('/guru/change-password', payload),
 };
 
 export const entityService = {
