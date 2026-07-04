@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 
 function ForceChangePasswordPage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isSiswa = (user.role || '').toLowerCase() === 'siswa';
+
+  useEffect(() => {
+    if (!isSiswa) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isSiswa, navigate]);
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -58,7 +65,7 @@ function ForceChangePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-green-50 p-6 sm:p-12">
+    <div className="min-h-screen w-full flex items-center justify-center bg-green-50 p-6 sm:p-12 relative overflow-hidden">
       {/* Glow Spheres */}
       <div className="absolute -left-16 -top-16 w-72 h-72 rounded-full bg-green-500/5 blur-3xl pointer-events-none" />
       <div className="absolute -right-16 -bottom-16 w-72 h-72 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />

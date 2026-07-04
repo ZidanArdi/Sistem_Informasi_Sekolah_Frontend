@@ -55,16 +55,16 @@ const getIcon = (key) => {
           <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       );
+    case 'ubah-password':
+      return (
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      );
     case 'absensi':
       return (
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-        </svg>
-      );
-    case 'pengumuman':
-      return (
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
         </svg>
       );
     case 'laporan':
@@ -110,7 +110,6 @@ function AppLayout() {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -123,8 +122,8 @@ function AppLayout() {
     navigate('/login', { replace: true });
   };
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
     setPasswordError('');
     setPasswordSuccess('');
 
@@ -132,23 +131,19 @@ function AppLayout() {
       setPasswordError('Password baru minimal 6 karakter');
       return;
     }
-
     if (newPassword !== confirmPassword) {
       setPasswordError('Konfirmasi password tidak cocok');
       return;
     }
 
     try {
-      await authService.changePassword({
-        old_password: oldPassword,
-        new_password: newPassword
-      });
+      await authService.changePassword({ old_password: oldPassword, new_password: newPassword });
       setPasswordSuccess('Password berhasil diubah!');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err) {
-      setPasswordError(err.response?.data?.message || 'Gagal mengubah password');
+    } catch (error) {
+      setPasswordError(error.response?.data?.message || 'Gagal mengubah password');
     }
   };
 
@@ -187,23 +182,22 @@ function AppLayout() {
           { label: 'Menu Utama', type: 'header' },
           { label: 'Dashboard', to: '/dashboard', icon: 'dashboard' },
           { label: 'Profil Saya', to: '/dashboard?tab=profil-saya', icon: 'profil-saya' },
+          { label: 'Ubah Password', to: '/dashboard?tab=ubah-password', icon: 'ubah-password' },
           { label: 'Jadwal Pelajaran', to: '/dashboard?tab=jadwal-pelajaran', icon: 'jadwal' },
           { label: 'Nilai Akademik', to: '/dashboard?tab=nilai-akademik', icon: 'nilai' },
           { label: 'Absensi', to: '/dashboard?tab=absensi', icon: 'absensi' },
           { label: 'Perizinan', to: '/dashboard?tab=perizinan', icon: 'perizinan' },
-          { label: 'Pengumuman', to: '/dashboard?tab=pengumuman', icon: 'pengumuman' },
         ];
       case 'guru':
         return [
           { label: 'Menu Utama', type: 'header' },
           { label: 'Dashboard', to: '/dashboard', icon: 'dashboard' },
-          { label: 'Profil Guru', to: '/dashboard?tab=profil-guru', icon: 'profil-guru' },
+          { label: 'Profil Saya', to: '/dashboard?tab=profil-guru', icon: 'profil-guru' },
+          { label: 'Ubah Password', to: '/dashboard?tab=ubah-password', icon: 'ubah-password' },
           { label: 'Jadwal Mengajar', to: '/dashboard?tab=jadwal-mengajar', icon: 'jadwal' },
           { label: 'Data Siswa', to: '/dashboard?tab=data-siswa', icon: 'siswa' },
           { label: 'Input Nilai', to: '/data/nilai', icon: 'nilai' },
-          { label: 'Absensi Siswa', to: '/dashboard?tab=absensi', icon: 'absensi' },
-          { label: 'Perizinan Siswa', to: '/dashboard?tab=perizinan', icon: 'perizinan' },
-          { label: 'Pengumuman', to: '/dashboard?tab=pengumuman', icon: 'pengumuman' },
+          { label: 'Perizinan', to: '/dashboard?tab=perizinan', icon: 'perizinan' },
         ];
       case 'admin':
       case 'administrator':
@@ -240,7 +234,7 @@ function AppLayout() {
   return (
     <div className="min-h-screen bg-green-50/30 text-gray-900 flex">
       {/* Sidebar - Desktop */}
-      <aside className="fixed inset-y-0 left-0 hidden w-68 glass-sidebar bg-white px-4 py-6 lg:flex flex-col z-30 border-r border-gray-200">
+      <aside className="fixed inset-y-0 left-0 hidden w-68 glass-sidebar px-4 py-6 lg:flex flex-col z-30">
         {/* Logo/Brand */}
         <div className="mb-8 px-4 flex items-center gap-3">
           <img src="/favicon.svg" alt="Logo" className="h-9 w-9 object-contain" />
@@ -274,21 +268,6 @@ function AppLayout() {
       <div className="flex-1 lg:pl-68 min-h-screen flex flex-col">
         {/* Header - Desktop */}
         <header className="hidden lg:flex items-center justify-end px-8 pt-6 pb-2 bg-transparent gap-4">
-          {/* Chat Icon */}
-          <button type="button" className="h-10 w-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-green-600 hover:border-green-300 transition duration-200 shadow-sm cursor-pointer">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </button>
-          
-          {/* Notification Icon */}
-          <button type="button" className="h-10 w-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-green-600 hover:border-green-300 transition duration-200 shadow-sm cursor-pointer relative">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-red-500"></span>
-          </button>
-          
           {/* Profile Dropdown / User Details */}
           <div className="relative">
             <button 
@@ -297,11 +276,7 @@ function AppLayout() {
               className="flex items-center gap-3 pl-2 border-l border-gray-250 hover:opacity-85 transition cursor-pointer text-left focus:outline-none"
             >
               <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-green-500/10 to-emerald-500/10 border border-green-200 flex items-center justify-center text-green-700 font-bold text-sm overflow-hidden shadow-sm">
-                <img 
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=120" 
-                  alt={user.nama} 
-                  className="h-full w-full object-cover" 
-                />
+                {getInitials(user.nama || 'Pengguna')}
               </div>
               <div className="text-left leading-tight">
                 <p className="text-sm font-bold text-gray-900">{user.nama || 'Pengguna'}</p>
@@ -329,19 +304,6 @@ function AppLayout() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   Info Profil
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPasswordModal(true);
-                    setShowProfileDropdown(false);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-green-50 hover:text-green-700 flex items-center gap-2 transition cursor-pointer"
-                >
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m-5-3a3 3 0 11-6 0 3 3 0 016 0zM4 6h16M4 12h16m-7 6h7" />
-                  </svg>
-                  Ubah Password
                 </button>
                 <div className="border-t border-gray-100 my-1"></div>
                 <button
@@ -419,11 +381,7 @@ function AppLayout() {
             <div className="p-6">
               <div className="flex flex-col items-center mb-6">
                 <div className="h-20 w-20 rounded-full bg-gradient-to-tr from-green-500/10 to-emerald-500/10 border-2 border-green-500/30 flex items-center justify-center overflow-hidden shadow-md">
-                  <img 
-                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=120" 
-                    alt={user.nama} 
-                    className="h-full w-full object-cover" 
-                  />
+                  <span className="text-xl font-extrabold text-green-700">{getInitials(user.nama || 'Pengguna')}</span>
                 </div>
                 <h4 className="text-base font-extrabold text-gray-900 mt-3">{user.nama}</h4>
                 <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200/50 px-3 py-1 text-xs font-bold text-green-700 capitalize mt-1.5">
@@ -443,7 +401,7 @@ function AppLayout() {
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">No. Induk / NISN</label>
                   <p className="text-sm font-bold text-gray-900 mt-0.5">
-                    {user.role === 'admin' ? 'N/A' : (user.role === 'siswa' ? '1202204012' : '198705122010121002')}
+                    {user.nis || user.nip || '-'}
                   </p>
                 </div>
               </div>

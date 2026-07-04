@@ -1,5 +1,5 @@
-import React from 'react';
 import swalAlert from '../../utils/swal';
+import EmptyState from '../common/EmptyState';
 
 function LaporanTab() {
   const reportTypes = [
@@ -46,39 +46,10 @@ function LaporanTab() {
         ))}
       </div>
 
-      {/* School Statistics Visual Mockup */}
-      <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200 space-y-6 text-left">
-        <h3 className="font-extrabold text-gray-955 text-lg border-b border-gray-150 pb-3">Statistik Distribusi Grade Sekolah</h3>
-        <div className="space-y-4">
-          <div>
-            <div className="mb-1 flex justify-between text-xs font-bold text-gray-700">
-              <span>Grade A (Nilai &gt;= 85)</span>
-              <span>42% Siswa</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-2 rounded-full bg-green-600" style={{ width: '42%' }} />
-            </div>
-          </div>
-          <div>
-            <div className="mb-1 flex justify-between text-xs font-bold text-gray-700">
-              <span>Grade B (Nilai 75 - 84)</span>
-              <span>48% Siswa</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-2 rounded-full bg-emerald-500" style={{ width: '48%' }} />
-            </div>
-          </div>
-          <div>
-            <div className="mb-1 flex justify-between text-xs font-bold text-gray-700">
-              <span>Grade C (Nilai &lt; 75)</span>
-              <span>10% Siswa</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-2 rounded-full bg-red-450 bg-red-400" style={{ width: '10%' }} />
-            </div>
-          </div>
-        </div>
-      </div>
+      <EmptyState
+        title="Statistik Belum Tersedia"
+        description="Statistik laporan akan tampil setelah data tersedia dari server."
+      />
     </div>
   );
 }

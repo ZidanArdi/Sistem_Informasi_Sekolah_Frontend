@@ -3,14 +3,13 @@ import { useSearchParams } from 'react-router-dom';
 import StateBlock from '../components/StateBlock';
 import api, { entityService } from '../services/api';
 
-// Import modular tab components
 import DashboardTab from '../components/dashboard/DashboardTab';
 import ProfileTab from '../components/dashboard/ProfileTab';
+import ChangePasswordTab from '../components/dashboard/ChangePasswordTab';
 import JadwalTab from '../components/dashboard/JadwalTab';
 import NilaiTab from '../components/dashboard/NilaiTab';
 import AbsensiTab from '../components/dashboard/AbsensiTab';
 import PerizinanTab from '../components/dashboard/PerizinanTab';
-import PengumumanTab from '../components/dashboard/PengumumanTab';
 import DataSiswaTab from '../components/dashboard/DataSiswaTab';
 import LaporanTab from '../components/dashboard/LaporanTab';
 import UserManagementTab from '../components/dashboard/UserManagementTab';
@@ -53,27 +52,14 @@ function DashboardPage() {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userId = user.id;
+  const userNip = user.nip;
   const [searchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'dashboard';
   const roleNorm = (user.role || '').toLowerCase();
 
   const [dashboardStats, setDashboardStats] = useState({});
-
-  useEffect(() => {
-    const day = selectedDate.getDay();
-    if (day === 0) { // Sunday
-      const monday = new Date(selectedDate);
-      monday.setDate(selectedDate.getDate() + 1);
-      setSelectedDate(monday);
-    } else if (day === 6) { // Saturday
-      const monday = new Date(selectedDate);
-      monday.setDate(selectedDate.getDate() + 2);
-      setSelectedDate(monday);
-    }
-  }, [selectedDate]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -102,7 +88,56 @@ function DashboardPage() {
 
           if (url) {
             const response = await api.get(url);
-            setDashboardStats(response.data.data || {});
+            const dashboardData = response.data.data || {};
+            setDashboardStats(dashboardData);
+
+            if (roleNorm === 'siswa') {
+              const profile = dashboardData.profil_siswa;
+              if (!profile?.id || !profile?.kelas_id) {
+                setData({ jadwal: [], nilai: [] });
+              } else {
+                const [scheduleResponse, gradeResponse] = await Promise.all([
+                  entityService.list('/jadwal', { kelas_id: profile.kelas_id }),
+                  entityService.list('/nilai', { siswa_id: profile.id }),
+                ]);
+                setData({
+                  jadwal: scheduleResponse.data.data || [],
+                  nilai: gradeResponse.data.data || [],
+                });
+              }
+            } else if (roleNorm === 'guru') {
+              const [teachersResponse, classesResponse] = await Promise.all([
+                entityService.list('/guru'),
+                entityService.list('/kelas')
+              ]);
+              const teachers = teachersResponse.data.data || [];
+              const teacher = teachers.find((item) =>
+                Number(item.user_id) === Number(userId) || item.nip === userNip
+              );
+              
+              let schedules = [];
+              let students = [];
+              let waliKelasOf = null;
+              
+              if (teacher?.id) {
+                const scheduleResponse = await entityService.list('/jadwal', { guru_id: teacher.id });
+                schedules = scheduleResponse.data.data || [];
+                
+                const classes = classesResponse.data.data || [];
+                waliKelasOf = classes.find((c) => c.wali_kelas_id === teacher.id);
+                
+                if (waliKelasOf) {
+                  const siswaResponse = await entityService.list('/siswa', { kelas_id: waliKelasOf.id });
+                  students = siswaResponse.data.data || [];
+                }
+              }
+              
+              setData({ 
+                jadwal: schedules, 
+                siswa: students,
+                kelasPerwalian: waliKelasOf
+              });
+            }
           }
         }
       } catch (err) {
@@ -113,7 +148,7 @@ function DashboardPage() {
     };
 
     fetchStats();
-  }, [roleNorm]);
+  }, [roleNorm, userId, userNip]);
 
   const stats = useMemo(() => {
     const nilai = data.nilai || [];
@@ -193,105 +228,16 @@ function DashboardPage() {
 
     return mapel.map((item) => {
       const rows = nilai.filter((score) => score.mapel_id === item.id);
-      const avg = rows.length
-        ? rows.reduce((sum, score) => sum + Number(score.nilai || 0), 0) / rows.length
-        : 0;
+      if (rows.length === 0) return null;
+      const avg = rows.reduce((sum, score) => sum + Number(score.nilai || 0), 0) / rows.length;
 
       return {
         label: item.nama_mapel,
         value: avg.toFixed(1),
         width: `${avg}%`,
       };
-    });
+    }).filter(Boolean);
   }, [data]);
-
-  const weekDays = useMemo(() => {
-    const current = new Date(selectedDate);
-    const day = current.getDay();
-    const diff = current.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(current.setDate(diff));
-    
-    const days = [];
-    for (let i = 0; i < 5; i++) {
-      const temp = new Date(monday);
-      temp.setDate(monday.getDate() + i);
-      days.push(temp);
-    }
-    return days;
-  }, [selectedDate]);
-
-  const formattedMonthYear = useMemo(() => {
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return `${monthNames[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
-  }, [selectedDate]);
-
-  const dayNamesIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-
-  const selectedDaySchedules = useMemo(() => {
-    const selectedDayIndo = dayNamesIndo[selectedDate.getDay()];
-    const list = data.jadwal || [];
-    const filtered = list.filter(item => 
-      item.hari && item.hari.toLowerCase() === selectedDayIndo.toLowerCase()
-    );
-
-    if (filtered.length === 0) {
-      if (selectedDayIndo === 'Senin') {
-        return [
-          { jam_mulai: '08:00', jam_selesai: '09:30', mapel: { nama_mapel: 'Matematika' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Dr. Albert' } },
-          { jam_mulai: '09:45', jam_selesai: '11:15', mapel: { nama_mapel: 'Bahasa Indonesia' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Miss Clara' } },
-          { jam_mulai: '11:30', jam_selesai: '13:00', mapel: { nama_mapel: 'PPKN' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'M.A Jackson' } }
-        ];
-      } else if (selectedDayIndo === 'Selasa') {
-        return [
-          { jam_mulai: '08:00', jam_selesai: '09:30', mapel: { nama_mapel: 'IPA' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Dr. Albert' } },
-          { jam_mulai: '09:45', jam_selesai: '11:15', mapel: { nama_mapel: 'IPS' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Miss Clara' } },
-          { jam_mulai: '11:30', jam_selesai: '13:00', mapel: { nama_mapel: 'Agama' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Ustadz Malik' } }
-        ];
-      } else if (selectedDayIndo === 'Rabu') {
-        return [
-          { jam_mulai: '08:00', jam_selesai: '09:30', mapel: { nama_mapel: 'Bahasa Inggris' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Miss Clara' } },
-          { jam_mulai: '09:45', jam_selesai: '11:15', mapel: { nama_mapel: 'Penjasorkes' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Budi Santoso' } },
-          { jam_mulai: '11:30', jam_selesai: '13:00', mapel: { nama_mapel: 'Seni Budaya' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'M.A Jackson' } }
-        ];
-      } else if (selectedDayIndo === 'Kamis') {
-        return [
-          { jam_mulai: '08:00', jam_selesai: '09:30', mapel: { nama_mapel: 'Informatika' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Dr. Albert' } },
-          { jam_mulai: '09:45', jam_selesai: '11:15', mapel: { nama_mapel: 'Sejarah' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Miss Clara' } },
-          { jam_mulai: '11:30', jam_selesai: '13:00', mapel: { nama_mapel: 'Prakarya' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'M.A Jackson' } }
-        ];
-      } else if (selectedDayIndo === 'Jumat') {
-        return [
-          { jam_mulai: '08:00', jam_selesai: '09:30', mapel: { nama_mapel: 'Matematika Peminatan' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Dr. Albert' } },
-          { jam_mulai: '09:45', jam_selesai: '11:15', mapel: { nama_mapel: 'Fisika' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'Miss Clara' } },
-          { jam_mulai: '11:30', jam_selesai: '13:00', mapel: { nama_mapel: 'Kimia' }, kelas: { nama_kelas: 'Kelas Siswa' }, guru: { nama: 'M.A Jackson' } }
-        ];
-      }
-      return [];
-    }
-
-    return filtered.sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai));
-  }, [data.jadwal, selectedDate]);
-
-  const handlePrevWeek = () => {
-    const prev = new Date(selectedDate);
-    prev.setDate(selectedDate.getDate() - 7);
-    setSelectedDate(prev);
-  };
-
-  const handleNextWeek = () => {
-    const next = new Date(selectedDate);
-    next.setDate(selectedDate.getDate() + 7);
-    setSelectedDate(next);
-  };
-
-  const isSelectedDay = (day) => {
-    return day.getDate() === selectedDate.getDate() && 
-           day.getMonth() === selectedDate.getMonth() &&
-           day.getFullYear() === selectedDate.getFullYear();
-  };
 
   if (loading) {
     return <StateBlock title="Memuat dashboard..." />;
@@ -306,18 +252,18 @@ function DashboardPage() {
       case 'profil-saya':
       case 'profil-guru':
         return <ProfileTab user={user} roleNorm={roleNorm} />;
+      case 'ubah-password':
+        return <ChangePasswordTab roleNorm={roleNorm} />;
       case 'jadwal-pelajaran':
       case 'jadwal-mengajar':
-        return <JadwalTab />;
+        return <JadwalTab schedules={data.jadwal || []} roleNorm={roleNorm} />;
       case 'nilai-akademik':
-        return <NilaiTab />;
+        return <NilaiTab grades={data.nilai || []} />;
       case 'absensi':
       case 'absensi-siswa':
         return <AbsensiTab />;
       case 'perizinan':
-        return <PerizinanTab roleNorm={roleNorm} user={user} />;
-      case 'pengumuman':
-        return <PengumumanTab />;
+        return <PerizinanTab roleNorm={roleNorm} />;
       case 'data-siswa':
         return <DataSiswaTab user={user} data={data} />;
       case 'laporan':
@@ -340,14 +286,6 @@ function DashboardPage() {
             getGreeting={getGreeting}
             getInitials={getInitials}
             getIndonesianDayName={getIndonesianDayName}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            weekDays={weekDays}
-            isSelectedDay={isSelectedDay}
-            handlePrevWeek={handlePrevWeek}
-            handleNextWeek={handleNextWeek}
-            formattedMonthYear={formattedMonthYear}
-            selectedDaySchedules={selectedDaySchedules}
             stats={stats}
           />
         );

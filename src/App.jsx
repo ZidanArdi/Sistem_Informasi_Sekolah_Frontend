@@ -14,23 +14,23 @@ function SiswaList() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/siswa');
+        if (!response.ok) {
+          throw new Error('Gagal mengambil data dari server');
+        }
+        const result = await response.json();
+        setStudents(result.data || []);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchStudents();
   }, []);
-
-  const fetchStudents = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/api/siswa');
-      if (!response.ok) {
-        throw new Error('Gagal mengambil data dari server');
-      }
-      const result = await response.json();
-      setStudents(result.data || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getInitials = (name) => {
     return name
@@ -150,29 +150,29 @@ function SiswaDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    const fetchStudentDetail = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/siswa');
+        if (!response.ok) {
+          throw new Error('Gagal mengambil data dari server');
+        }
+        const result = await response.json();
+        const foundStudent = (result.data || []).find((s) => s.nis === id);
+
+        if (!foundStudent) {
+          throw new Error('Siswa tidak ditemukan');
+        }
+
+        setStudent(foundStudent);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchStudentDetail();
   }, [id]);
-
-  const fetchStudentDetail = async () => {
-    try {
-      const response = await fetch(`http://localhost:3000/api/siswa`);
-      if (!response.ok) {
-        throw new Error('Gagal mengambil data dari server');
-      }
-      const result = await response.json();
-      const foundStudent = (result.data || []).find((s) => s.nis === id);
-      
-      if (!foundStudent) {
-        throw new Error('Siswa tidak ditemukan');
-      }
-      
-      setStudent(foundStudent);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getInitials = (name) => {
     return name

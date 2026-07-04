@@ -1,5 +1,5 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
+import EmptyState from '../common/EmptyState';
 
 function DashboardTab({
   roleNorm,
@@ -85,8 +85,11 @@ function DashboardTab({
 
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200 text-left">
               <h3 className="font-extrabold text-gray-900 text-base border-b border-gray-100 pb-4 mb-6">Rata-rata Nilai per Mapel</h3>
-              <div className="space-y-4">
-                {rataNilaiMapel.map((item) => (
+              {rataNilaiMapel.length === 0 ? (
+                <EmptyState title="Belum Ada Nilai" description="Nilai akademik belum tersedia." />
+              ) : (
+                <div className="space-y-4">
+                  {rataNilaiMapel.map((item) => (
                   <div key={item.label}>
                     <div className="mb-1.5 flex justify-between text-xs font-bold text-gray-700">
                       <span>{item.label}</span>
@@ -96,8 +99,9 @@ function DashboardTab({
                       <div className="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-1000" style={{ width: item.width }} />
                     </div>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         </div>

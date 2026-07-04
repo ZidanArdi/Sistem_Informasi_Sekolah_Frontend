@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import { entityConfigs, getNestedValue, formatValue, buildInitialValues } from '../data/entities';
 import { entityService } from '../services/api';
 import FormField from '../components/FormField';
 import StateBlock from '../components/StateBlock';
+import EmptyState from '../components/common/EmptyState';
 import swalAlert from '../utils/swal';
 
 function EntityManagerPage() {
@@ -11,7 +13,6 @@ function EntityManagerPage() {
   const config = entityConfigs[entity];
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  const isSiswa = user.role === 'siswa';
   const isWritable = (() => {
     const role = (user.role || '').toLowerCase();
     if (role === 'admin' || role === 'administrator') return true;
@@ -41,12 +42,16 @@ function EntityManagerPage() {
 
   // Reset filters and search when entity changes
   useEffect(() => {
-    setSearch('');
-    setFilters({});
-    setModalOpen(false);
-    setEditingItem(null);
-    setFormValues({});
-    setFormError('');
+    const resetTimer = window.setTimeout(() => {
+      setSearch('');
+      setFilters({});
+      setModalOpen(false);
+      setEditingItem(null);
+      setFormValues({});
+      setFormError('');
+    }, 0);
+
+    return () => window.clearTimeout(resetTimer);
   }, [entity]);
 
   // Fetch lookups required by current entity
@@ -85,7 +90,7 @@ function EntityManagerPage() {
   }, [entity, config]);
 
   // Fetch list data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!config) return;
     setLoading(true);
     setError('');
@@ -102,11 +107,12 @@ function EntityManagerPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [config, filters, search]);
 
   useEffect(() => {
-    fetchData();
-  }, [entity, config, filters, search]);
+    const fetchTimer = window.setTimeout(fetchData, 0);
+    return () => window.clearTimeout(fetchTimer);
+  }, [fetchData]);
 
   if (!config) {
     return <StateBlock title="Halaman tidak ditemukan" tone="danger" />;
@@ -294,7 +300,7 @@ function EntityManagerPage() {
       ) : error ? (
         <StateBlock title={error} tone="danger" />
       ) : listData.length === 0 ? (
-        <StateBlock title={`Belum ada data ${config.title}.`} />
+        <EmptyState title="Belum Ada Data" description={`Belum ada data ${config.title}.`} />
       ) : (
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm border border-gray-200">
           <div className="overflow-x-auto">
@@ -365,9 +371,9 @@ function EntityManagerPage() {
       )}
 
       {/* Add / Edit Form Modal */}
-      {modalOpen && (
+      {modalOpen && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-950/40 backdrop-blur-sm p-4 transition-all duration-300">
-          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl animate-scale-up">
+          <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl animate-scale-up">
             <div className="mb-4 border-b border-gray-100 pb-3 flex items-center justify-between">
               <h3 className="text-lg font-extrabold text-gray-900 tracking-tight">
                 {editingItem ? 'Edit' : 'Tambah'} {config.shortTitle || config.title}
@@ -389,16 +395,20 @@ function EntityManagerPage() {
             )}
 
             <form onSubmit={handleFormSubmit} className="space-y-5">
-              <div className="grid gap-4 max-h-[60vh] overflow-y-auto px-1 py-1">
-                {config.fields.map((field) => (
-                  <FormField
-                    key={field.name}
-                    field={field}
-                    value={formValues[field.name] || ''}
-                    lookups={lookups}
-                    onChange={handleFormFieldChange}
-                  />
-                ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 max-h-[65vh] overflow-y-auto px-1 py-1">
+                {config.fields.map((field) => {
+                  const gridSpanClass = field.gridSpan === 2 ? 'md:col-span-2' : 'col-span-1';
+                  return (
+                    <div key={field.name} className={gridSpanClass}>
+                      <FormField
+                        field={field}
+                        value={field.type === 'address' ? formValues : (formValues[field.name] || '')}
+                        lookups={lookups}
+                        onChange={handleFormFieldChange}
+                      />
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
@@ -419,7 +429,8 @@ function EntityManagerPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
