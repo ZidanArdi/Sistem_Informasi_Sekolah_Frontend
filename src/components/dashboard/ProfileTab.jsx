@@ -107,7 +107,7 @@ function ProfileTab({ user: localUser, roleNorm }) {
   }, [kecamatan, districts, editing]);
 
   if (loading) {
-    return <StateBlock title="Memuat data profil..." />;
+    return <StateBlock tone="loading" />;
   }
 
   const initials = (profile?.nama || 'User')
@@ -335,6 +335,67 @@ function ProfileTab({ user: localUser, roleNorm }) {
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Alamat Rumah</p>
                 <p className="mt-1.5 font-semibold text-gray-800">{formattedAddress}</p>
               </div>
+
+              {/* Siswa Academic & Parent Info */}
+              {roleNorm === 'siswa' && (
+                <>
+                  <div className="sm:col-span-2 border-t border-gray-150 pt-5 mt-4">
+                    <h5 className="font-extrabold text-gray-955 text-base mb-4">Informasi Akademik</h5>
+                    <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nomor Induk Siswa (NIS)</p>
+                        <p className="mt-1.5 font-bold text-gray-900">{profile.nis || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Kelas</p>
+                        <p className="mt-1.5 font-bold text-gray-900">{profile.kelas?.nama_kelas || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Jurusan / Kompetensi Keahlian</p>
+                        <p className="mt-1.5 font-bold text-gray-900">{profile.kelas?.jurusan || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tahun Masuk / Angkatan</p>
+                        <p className="mt-1.5 font-semibold text-gray-800">
+                          {profile.nis && profile.nis.length >= 4 && !isNaN(Number(profile.nis.slice(0, 4)))
+                            ? profile.nis.slice(0, 4)
+                            : '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status Siswa</p>
+                        <p className="mt-1.5 font-semibold text-green-700">Aktif</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Wali Kelas</p>
+                        <p className="mt-1.5 font-bold text-gray-900">{profile.kelas?.wali_kelas?.nama || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2 border-t border-gray-150 pt-5 mt-4">
+                    <h5 className="font-extrabold text-gray-955 text-base mb-4">Data Orang Tua / Wali</h5>
+                    <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nama Ayah</p>
+                        <p className="mt-1.5 font-semibold text-gray-800">{profile.nama_ayah || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Nama Ibu</p>
+                        <p className="mt-1.5 font-semibold text-gray-800">{profile.nama_ibu || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">No. HP Orang Tua / Wali</p>
+                        <p className="mt-1.5 font-semibold text-gray-800">{profile.no_hp_orang_tua || profile.no_hp_ortu || '-'}</p>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Alamat Orang Tua / Wali</p>
+                        <p className="mt-1.5 font-semibold text-gray-800 leading-relaxed">{profile.alamat_orang_tua || profile.alamat_ortu || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             /* Editing Form View */

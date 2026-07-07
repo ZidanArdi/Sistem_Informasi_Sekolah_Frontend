@@ -190,14 +190,17 @@ function AppLayout() {
         ];
       case 'guru':
         return [
-          { label: 'Menu Utama', type: 'header' },
           { label: 'Dashboard', to: '/dashboard', icon: 'dashboard' },
+          { label: 'Account', type: 'header' },
           { label: 'Profil Saya', to: '/dashboard?tab=profil-guru', icon: 'profil-guru' },
           { label: 'Ubah Password', to: '/dashboard?tab=ubah-password', icon: 'ubah-password' },
+          { label: 'Academic', type: 'header' },
           { label: 'Jadwal Mengajar', to: '/dashboard?tab=jadwal-mengajar', icon: 'jadwal' },
           { label: 'Data Siswa', to: '/dashboard?tab=data-siswa', icon: 'siswa' },
-          { label: 'Input Nilai', to: '/data/nilai', icon: 'nilai' },
+          { label: 'Input Nilai', to: '/dashboard?tab=input-nilai', icon: 'nilai' },
+          { label: 'Future Features', type: 'header' },
           { label: 'Perizinan', to: '/dashboard?tab=perizinan', icon: 'perizinan' },
+          { label: 'Absensi', to: '/dashboard?tab=absensi', icon: 'absensi' },
         ];
       case 'admin':
       case 'administrator':

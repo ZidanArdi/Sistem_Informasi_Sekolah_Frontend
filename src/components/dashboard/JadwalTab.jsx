@@ -51,8 +51,11 @@ function JadwalTab({ schedules = [], roleNorm }) {
                     </strong>
                     <span className="mt-1 block text-xs font-medium text-gray-500">
                       {isTeacher
-                        ? schedule.kelas?.nama_kelas || 'Kelas belum ditentukan'
-                        : schedule.guru?.nama || 'Guru belum ditentukan'}
+                        ? `Kelas: ${schedule.kelas?.nama_kelas || '-'}`
+                        : `Guru: ${schedule.guru?.nama || '-'}`}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-medium text-gray-405">
+                      Ruangan: {schedule.ruangan || '-'}
                     </span>
                   </article>
                 ))}

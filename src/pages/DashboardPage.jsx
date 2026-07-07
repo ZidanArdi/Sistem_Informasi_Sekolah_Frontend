@@ -120,16 +120,15 @@ function DashboardPage() {
               let waliKelasOf = null;
               
               if (teacher?.id) {
-                const scheduleResponse = await entityService.list('/jadwal', { guru_id: teacher.id });
+                const [scheduleResponse, siswaResponse] = await Promise.all([
+                  entityService.list('/jadwal', { guru_id: teacher.id }),
+                  entityService.list('/siswa', { guru_id: teacher.id })
+                ]);
                 schedules = scheduleResponse.data.data || [];
+                students = siswaResponse.data.data || [];
                 
                 const classes = classesResponse.data.data || [];
                 waliKelasOf = classes.find((c) => c.wali_kelas_id === teacher.id);
-                
-                if (waliKelasOf) {
-                  const siswaResponse = await entityService.list('/siswa', { kelas_id: waliKelasOf.id });
-                  students = siswaResponse.data.data || [];
-                }
               }
               
               setData({ 
@@ -240,11 +239,11 @@ function DashboardPage() {
   }, [data]);
 
   if (loading) {
-    return <StateBlock title="Memuat dashboard..." />;
+    return <StateBlock tone="loading" />;
   }
 
   if (error) {
-    return <StateBlock title={error} tone="danger" />;
+    return <StateBlock title={error} tone="danger" onRetry={fetchStats} />;
   }
 
   const renderTabContent = () => {
@@ -259,6 +258,8 @@ function DashboardPage() {
         return <JadwalTab schedules={data.jadwal || []} roleNorm={roleNorm} />;
       case 'nilai-akademik':
         return <NilaiTab grades={data.nilai || []} />;
+      case 'input-nilai':
+        return <NilaiTab />;
       case 'absensi':
       case 'absensi-siswa':
         return <AbsensiTab />;

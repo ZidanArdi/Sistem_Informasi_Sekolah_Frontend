@@ -4,6 +4,7 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import EntityManagerPage from './pages/EntityManagerPage';
 import ForceChangePasswordPage from './pages/ForceChangePasswordPage';
+import StudentProfilePage from './pages/StudentProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 
@@ -266,6 +267,7 @@ function App() {
           <Route path="/change-password" element={<ForceChangePasswordPage />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard/siswa/:id" element={<StudentProfilePage />} />
             <Route path="/data/:entity" element={<EntityManagerPage />} />
           </Route>
         </Route>
