@@ -46,7 +46,7 @@ function DashboardTab({
               { label: 'Total Guru', value: dashboardStats.total_guru || 0, desc: 'Tenaga pengajar aktif', color: 'from-emerald-500 to-teal-500', icon: '👨‍🏫' },
               { label: 'Total Kelas', value: dashboardStats.total_kelas || 0, desc: 'Ruang kelas belajar', color: 'from-green-600 to-emerald-700', icon: '🏫' },
               { label: 'Total Mapel', value: dashboardStats.total_mapel || 0, desc: 'Mata pelajaran diajarkan', color: 'from-teal-600 to-emerald-600', icon: '📖' },
-              { label: 'Perizinan Pending', value: dashboardStats.total_perizinan_pending || 0, desc: 'Surat pending persetujuan', color: 'from-amber-500 to-orange-500', icon: '⚠️' }
+              { label: 'Pending Permission Requests', value: dashboardStats.total_perizinan_pending !== undefined ? (dashboardStats.total_perizinan_pending || 0) : 0, desc: dashboardStats.total_perizinan_pending !== undefined ? 'Permohonan pending persetujuan' : 'Phase 5', color: 'from-amber-500 to-orange-500', icon: '⚠️' }
             ].map((item) => (
               <div key={item.label} className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 border border-gray-200 text-left">
                 <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${item.color} transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300`} />

@@ -15,6 +15,7 @@ import LaporanTab from '../components/dashboard/LaporanTab';
 import UserManagementTab from '../components/dashboard/UserManagementTab';
 import RolePermissionsTab from '../components/dashboard/RolePermissionsTab';
 import SystemSettingsTab from '../components/dashboard/SystemSettingsTab';
+import SchoolInfoTab from '../components/dashboard/SchoolInfoTab';
 
 const endpoints = {
   guru: '/guru',
@@ -275,6 +276,8 @@ function DashboardPage() {
         return <RolePermissionsTab />;
       case 'system-settings':
         return <SystemSettingsTab />;
+      case 'profil-sekolah':
+        return <SchoolInfoTab />;
       case 'dashboard':
       default:
         return (

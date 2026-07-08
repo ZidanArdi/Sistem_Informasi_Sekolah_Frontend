@@ -92,6 +92,12 @@ const getIcon = (key) => {
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       );
+    case 'school-info':
+      return (
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      );
     case 'perizinan':
       return (
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
@@ -206,18 +212,23 @@ function AppLayout() {
       case 'administrator':
       default:
         return [
-          { label: 'Menu Utama', type: 'header' },
+          { label: 'MENU UTAMA', type: 'header' },
           { label: 'Dashboard', to: '/dashboard', icon: 'dashboard' },
-          { label: 'Kelola Data', type: 'header' },
+          { label: 'KELOLA DATA', type: 'header' },
           { label: 'User Management', to: '/dashboard?tab=user-management', icon: 'user-management' },
-          { label: 'Role Permissions', to: '/dashboard?tab=role-permissions', icon: 'role-permissions' },
           { label: 'Data Guru', to: '/data/guru', icon: 'guru' },
           { label: 'Data Siswa', to: '/data/siswa', icon: 'siswa' },
           { label: 'Data Kelas', to: '/data/kelas', icon: 'kelas' },
           { label: 'Mata Pelajaran', to: '/data/mapel', icon: 'mapel' },
           { label: 'Jadwal', to: '/data/jadwal', icon: 'jadwal' },
-          { label: 'Perizinan', to: '/dashboard?tab=perizinan', icon: 'perizinan' },
+          { label: 'OPERASIONAL', type: 'header' },
+          { label: 'Monitoring Nilai', to: '/dashboard?tab=nilai-akademik', icon: 'nilai' },
+          { label: 'Monitoring Perizinan', to: '/dashboard?tab=perizinan', icon: 'perizinan' },
+          { label: 'INFORMASI', type: 'header' },
+          { label: 'Profil Sekolah', to: '/dashboard?tab=profil-sekolah', icon: 'school-info' },
+          { label: 'Role Permission', to: '/dashboard?tab=role-permissions', icon: 'role-permissions' },
           { label: 'Laporan', to: '/dashboard?tab=laporan', icon: 'laporan' },
+          { label: 'KONFIGURASI', type: 'header' },
           { label: 'System Settings', to: '/dashboard?tab=system-settings', icon: 'system-settings' },
         ];
     }

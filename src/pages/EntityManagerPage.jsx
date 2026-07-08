@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { entityConfigs, getNestedValue, formatValue, buildInitialValues } from '../data/entities';
 import { entityService } from '../services/api';
 import FormField from '../components/FormField';
@@ -13,10 +13,18 @@ function EntityManagerPage() {
   const config = entityConfigs[entity];
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+  const role = (user.role || '').toLowerCase();
+  const isAdmin = role === 'admin' || role === 'administrator';
+  const isGuru = role === 'guru';
+  const hasAccess = isAdmin || (isGuru && entity === 'nilai');
+
+  if (!hasAccess) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const isWritable = (() => {
-    const role = (user.role || '').toLowerCase();
-    if (role === 'admin' || role === 'administrator') return true;
-    if (role === 'guru') {
+    if (isAdmin) return true;
+    if (isGuru) {
       return entity === 'nilai';
     }
     return false; // siswa

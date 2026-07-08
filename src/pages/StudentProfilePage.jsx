@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { entityService } from '../services/api';
 import StateBlock from '../components/StateBlock';
 
@@ -9,6 +9,14 @@ function StudentProfilePage() {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = (localUser.role || '').toLowerCase();
+  const isSiswa = role === 'siswa';
+
+  if (isSiswa && student && String(student.id) !== String(localUser.id) && !loading) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   useEffect(() => {
     const fetchStudentDetail = async () => {
