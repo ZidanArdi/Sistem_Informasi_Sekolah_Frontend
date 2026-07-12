@@ -5,13 +5,12 @@ import { authService } from '../services/api';
 function ForceChangePasswordPage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isSiswa = (user.role || '').toLowerCase() === 'siswa';
 
   useEffect(() => {
-    if (!isSiswa) {
+    if (!user.is_first_login) {
       navigate('/dashboard', { replace: true });
     }
-  }, [isSiswa, navigate]);
+  }, [user.is_first_login, navigate]);
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -25,8 +24,17 @@ function ForceChangePasswordPage() {
     setError('');
     setSuccess('');
 
-    if (newPassword.length < 6) {
-      setError('Password baru minimal 6 karakter');
+    if (newPassword.length < 8) {
+      setError('Password baru minimal 8 karakter');
+      return;
+    }
+
+    const hasUpper = /[A-Z]/.test(newPassword);
+    const hasLower = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+
+    if (!hasUpper || !hasLower || !hasNumber) {
+      setError('Password baru harus mengandung minimal 1 huruf besar, 1 huruf kecil, dan 1 angka');
       return;
     }
 

@@ -26,6 +26,16 @@ api.interceptors.response.use(
       }
     }
 
+    if (error.response?.status === 403 && error.response?.data?.message?.includes('FORCE_PASSWORD_CHANGE')) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      user.is_first_login = true;
+      localStorage.setItem('user', JSON.stringify(user));
+
+      if (window.location.pathname !== '/change-password') {
+        window.location.href = '/change-password';
+      }
+    }
+
     return Promise.reject(error);
   },
 );

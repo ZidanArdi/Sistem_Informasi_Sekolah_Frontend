@@ -238,6 +238,21 @@ function ProfileTab({ user: localUser, roleNorm }) {
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span> Aktif
               </span>
             </div>
+            <div className="flex justify-between">
+              <span>Aktivitas Login:</span>
+              <span className="text-gray-900 font-bold">
+                {profile.last_login_at
+                  ? new Date(profile.last_login_at).toLocaleString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit'
+                    })
+                  : '-'}
+              </span>
+            </div>
             {profile.role === 'siswa' && (
               <div className="flex justify-between">
                 <span>Kelas:</span>
@@ -282,7 +297,7 @@ function ProfileTab({ user: localUser, roleNorm }) {
               </div>
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  {roleNorm === 'guru' ? 'NIP' : 'Nomor Induk Siswa (NIS)'}
+                  {roleNorm === 'guru' ? 'Nomor Induk Guru (NIG)' : 'Nomor Induk Siswa (NIS)'}
                 </p>
                 <p className="mt-1.5 font-bold text-gray-900">
                   {roleNorm === 'guru' ? (profile.nip || '-') : (profile.nis || '-')}

@@ -93,7 +93,7 @@ function AuthPage({ mode }) {
               {isLogin ? 'Selamat Datang Kembali' : 'Buat Akun Baru'}
             </h2>
             <p className="mt-1.5 text-xs text-gray-500 font-medium">
-              {isLogin ? 'Masukkan email dan password untuk masuk ke dasbor.' : 'Lengkapi formulir di bawah untuk mendaftar.'}
+              {isLogin ? 'Masukkan email atau ID akun (NIS/NIG/Admin) dan password untuk masuk ke dasbor.' : 'Lengkapi formulir di bawah untuk mendaftar.'}
             </p>
           </div>
 
@@ -120,13 +120,13 @@ function AuthPage({ mode }) {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                {isLogin ? 'Email atau NIS' : 'Alamat Email'}
+                {isLogin ? 'Email / ID Akun' : 'Alamat Email'}
               </label>
               <input
                 type={isLogin ? 'text' : 'email'}
                 value={form.email}
                 required
-                placeholder={isLogin ? 'Masukkan Email atau NIS' : 'operator@sekolah.com'}
+                placeholder={isLogin ? 'Masukkan Email, NIS, NIG, atau Kode Admin' : 'operator@sekolah.com'}
                 onChange={(event) => updateForm('email', event.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
               />
@@ -137,9 +137,8 @@ function AuthPage({ mode }) {
               <input
                 type="password"
                 value={form.password}
-                minLength={6}
                 required
-                placeholder="Minimal 6 karakter"
+                placeholder="Masukkan kata sandi"
                 onChange={(event) => updateForm('password', event.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
               />

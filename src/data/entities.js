@@ -41,7 +41,7 @@ export const entityConfigs = {
   guru: {
     title: 'Guru',
     endpoint: '/guru',
-    searchPlaceholder: 'Cari nama atau NIP',
+    searchPlaceholder: 'Cari nama atau NIG',
     fields: [
       { name: 'nama', label: 'Nama', required: true, gridSpan: 2 },
       { 
@@ -67,7 +67,7 @@ export const entityConfigs = {
       { name: 'mapel_ids', label: 'Mapel Diampu', type: 'checkbox_group', optionsSource: 'mapel', optionLabel: 'nama_mapel', optionSubLabel: 'kode_mapel', gridSpan: 2 },
     ],
     columns: [
-      { key: 'nip', label: 'NIP' },
+      { key: 'nip', label: 'Nomor Induk Guru (NIG)' },
       { key: 'nama', label: 'Nama' },
       { key: 'gelar', label: 'Gelar' },
       { key: 'jenis_kelamin', label: 'JK' },

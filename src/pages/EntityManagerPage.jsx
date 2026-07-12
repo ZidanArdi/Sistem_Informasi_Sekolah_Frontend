@@ -7,6 +7,8 @@ import FormField from '../components/FormField';
 import StateBlock from '../components/StateBlock';
 import EmptyState from '../components/common/EmptyState';
 import swalAlert from '../utils/swal';
+import { generateCredentialPDF } from '../utils/pdfGenerator';
+import '../components/common/credentialDialog.css';
 
 function EntityManagerPage() {
   const { entity } = useParams();
@@ -47,6 +49,25 @@ function EntityManagerPage() {
 
   // Lookups for Select options (e.g. listing kelas options in siswa form)
   const [lookups, setLookups] = useState({});
+
+  const [schoolProfile, setSchoolProfile] = useState(null);
+  const [successDetails, setSuccessDetails] = useState(null);
+  const [copying, setCopying] = useState(false);
+
+  useEffect(() => {
+    const fetchSchoolProfile = async () => {
+      try {
+        const response = await entityService.list('/school-profile');
+        if (response?.data?.data) {
+          const profile = Array.isArray(response.data.data) ? response.data.data[0] : response.data.data;
+          setSchoolProfile(profile);
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data profil sekolah:', err);
+      }
+    };
+    fetchSchoolProfile();
+  }, []);
 
   // Reset filters and search when entity changes
   useEffect(() => {
@@ -171,32 +192,38 @@ function EntityManagerPage() {
         if (response && response.data && response.data.temporary_password) {
           const tempPass = response.data.temporary_password;
           const nameStr = response.data.data.nama;
-          if (config.endpoint === '/siswa') {
-            const nisStr = response.data.data.nis;
-            swalAlert.info(
-              'Akun Siswa Berhasil Dibuat',
-              `Siswa ${nameStr} berhasil didaftarkan!\n\nNIS: ${nisStr}\nPassword Sementara: ${tempPass}\n\nHarap catat dan berikan kredensial ini kepada siswa untuk login pertama kali.`
-            );
-          } else if (config.endpoint === '/guru') {
-            const nipStr = response.data.data.nip;
-            const emailStr = response.data.data.user?.email || '';
-            swalAlert.info(
-              'Akun Guru Berhasil Dibuat',
-              `Guru ${nameStr} berhasil didaftarkan!\n\nNIP: ${nipStr}\nEmail Login: ${emailStr}\nPassword Sementara: ${tempPass}\n\nHarap catat dan berikan kredensial ini kepada guru untuk login pertama kali.`
-            );
+          const userRole = config.endpoint === '/siswa' ? 'siswa' : 'guru';
+          
+          let emailStr = '';
+          let idStr = '';
+          let className = '';
+
+          if (userRole === 'siswa') {
+            idStr = response.data.data.nis;
+            const suffix = String(idStr).slice(-3);
+            emailStr = `siswa${suffix}@sekolah.com`;
+            className = response.data.data.kelas?.nama_kelas || '-';
           } else {
-            swalAlert.info(
-              'Akun Berhasil Dibuat',
-              `User ${nameStr} berhasil didaftarkan!\n\nPassword Sementara: ${tempPass}`
-            );
+            idStr = response.data.data.nip;
+            const suffix = String(idStr).slice(-4);
+            const seqVal = parseInt(suffix, 10) || 1;
+            if (seqVal === 1) {
+              emailStr = 'principal@sekolah.com';
+            } else {
+              const formattedSeq = String(seqVal).padStart(2, '0');
+              emailStr = `guru${formattedSeq}@sekolah.com`;
+            }
           }
-        } else if (response && response.data && response.data.data && response.data.data.nip) {
-          const nipStr = response.data.data.nip;
-          const nameStr = response.data.data.nama;
-          swalAlert.success(
-            'Guru Berhasil Ditambahkan',
-            `Guru ${nameStr} berhasil ditambahkan dengan NIP: ${nipStr}`
-          );
+
+          setSuccessDetails({
+            role: userRole,
+            name: nameStr,
+            email: emailStr,
+            password: tempPass,
+            identifier: idStr,
+            class: className,
+            rawItem: response.data.data,
+          });
         } else {
           swalAlert.success('Berhasil', 'Data berhasil disimpan');
         }
@@ -436,6 +463,101 @@ function EntityManagerPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Success Dialog Modal */}
+      {successDetails && createPortal(
+        <div className="credential-modal-backdrop animate-backdrop-fade-in">
+          <div className="credential-modal-container animate-modal-scale-up border border-gray-200">
+            <div className="credential-modal-header bg-green-50/50">
+              <h3 className="text-xl font-extrabold text-green-900 tracking-tight flex items-center gap-2">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-700 font-bold">✓</span>
+                {successDetails.role === 'guru' ? 'Teacher' : 'Student'} Account Successfully Created
+              </h3>
+            </div>
+            
+            <div className="credential-modal-body">
+              <div className="space-y-0.5 border border-gray-150 rounded-2xl overflow-hidden bg-white/70">
+                <div className="credential-modal-row px-5 py-3">
+                  <div className="credential-modal-label">{successDetails.role === 'guru' ? 'Name' : 'Student Name'}</div>
+                  <div className="credential-modal-value">{successDetails.name}</div>
+                </div>
+
+                <div className="credential-modal-row px-5 py-3">
+                  <div className="credential-modal-label">Role</div>
+                  <div className="credential-modal-value capitalize">{successDetails.role === 'guru' ? 'Teacher' : 'Student'}</div>
+                </div>
+
+                {successDetails.role === 'siswa' && (
+                  <div className="credential-modal-row px-5 py-3">
+                    <div className="credential-modal-label">Class</div>
+                    <div className="credential-modal-value">{successDetails.class || '-'}</div>
+                  </div>
+                )}
+
+                <div className="credential-modal-row px-5 py-3">
+                  <div className="credential-modal-label">{successDetails.role === 'guru' ? 'NIG' : 'NIS'}</div>
+                  <div className="credential-modal-value">{successDetails.identifier}</div>
+                </div>
+
+                <div className="credential-modal-row px-5 py-3">
+                  <div className="credential-modal-label">Email Login</div>
+                  <div className="credential-modal-value">{successDetails.email}</div>
+                </div>
+
+                <div className="credential-modal-row px-5 py-3 bg-green-50/20">
+                  <div className="credential-modal-label text-green-700">Default Password</div>
+                  <div className="credential-modal-value text-green-800 font-mono tracking-wide">{successDetails.password}</div>
+                </div>
+              </div>
+
+              <div className="security-notice-box">
+                <span className="text-amber-600 text-sm">⚠️</span>
+                <p className="security-notice-text">
+                  Please change your password after your first login.
+                </p>
+              </div>
+            </div>
+
+            <div className="credential-modal-footer">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await generateCredentialPDF(successDetails, schoolProfile);
+                  } catch (err) {
+                    console.error('Gagal membuat PDF:', err);
+                    swalAlert.error('Gagal', 'Terjadi kesalahan saat membuat PDF.');
+                  }
+                }}
+                className="rounded-xl bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 text-xs font-bold transition shadow-sm shadow-green-500/10 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                📥 Download Credential PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCopying(true);
+                  const text = `Name: ${successDetails.name}\nRole: ${successDetails.role === 'guru' ? 'Teacher' : 'Student'}\n${successDetails.role === 'guru' ? 'NIG' : 'NIS'}: ${successDetails.identifier}\nEmail: ${successDetails.email}\nPassword: ${successDetails.password}`;
+                  navigator.clipboard.writeText(text);
+                  setTimeout(() => setCopying(false), 2000);
+                  swalAlert.toast('success', 'Credentials copied to clipboard!');
+                }}
+                className="rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2.5 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                📋 {copying ? 'Copied!' : 'Copy Credentials'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSuccessDetails(null)}
+                className="rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2.5 text-xs font-bold transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>,
         document.body

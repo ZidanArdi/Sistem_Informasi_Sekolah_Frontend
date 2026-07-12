@@ -5,22 +5,22 @@ import swalAlert from '../../utils/swal';
 
 const DEFAULT_PROFILE = {
   logo: '',
-  name: 'SMK Negeri 1 Jakarta',
-  npsn: '20103289',
+  name: 'SMK Negeri 1 Salatiga',
+  npsn: '20312345',
   status: 'Negeri',
   level: 'SMK / Sekolah Menengah Kejuruan',
   accreditation: 'A (Sangat Baik)',
   established_year: '1965',
-  address: 'Jl. Budi Utomo No.7, Pasar Baru, Sawah Besar, Jakarta Pusat',
-  postal_code: '10710',
-  phone: '+62 21 3813622',
-  email: 'info@smkn1jakarta.sch.id',
-  website: 'www.smkn1jakarta.sch.id',
-  principal_name: 'Dr. H. Purwosusilo, M.Pd.',
+  address: 'Jl. Diponegoro No. 25, Salatiga',
+  postal_code: '50711',
+  phone: '(0298) 123456',
+  email: 'info@smkn1salatiga.sch.id',
+  website: 'https://smkn1salatiga.sch.id',
+  principal_name: 'Drs. Hadi Santoso',
   principal_nip: '197205121998031002',
   principal_position: 'Kepala Sekolah',
-  appointment_period: '2021 - 2025',
-  academic_year: '2024/2025',
+  appointment_period: '2021 - 2027',
+  academic_year: '2026/2027',
   current_semester: 'Ganjil',
   academic_status: '🟢 Aktif',
   school_type: 'Sekolah Menengah Kejuruan (SMK)',
@@ -99,22 +99,22 @@ function SchoolInfoTab() {
     }
   };
 
-  useEffect(() => {
-    fetchSchoolStats();
-    
-    // Load profile from localStorage
-    const saved = localStorage.getItem('school_profile');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Ensure default properties are present
-        const merged = { ...DEFAULT_PROFILE, ...parsed };
+  const fetchSchoolProfile = async () => {
+    try {
+      const res = await api.get('/school-profile');
+      if (res.data.success && res.data.data) {
+        const merged = { ...DEFAULT_PROFILE, ...res.data.data };
         setProfile(merged);
         setTempProfile(merged);
-      } catch (err) {
-        console.warn('Gagal memuat data profil sekolah dari localStorage:', err);
       }
+    } catch (err) {
+      console.warn('Gagal memuat profil sekolah dari API, menggunakan default:', err);
     }
+  };
+
+  useEffect(() => {
+    fetchSchoolStats();
+    fetchSchoolProfile();
   }, []);
 
   const handleEditClick = () => {
@@ -127,11 +127,22 @@ function SchoolInfoTab() {
     setEditing(false);
   };
 
-  const handleSaveClick = () => {
-    localStorage.setItem('school_profile', JSON.stringify(profile));
-    setTempProfile({ ...profile });
-    setEditing(false);
-    swalAlert.success('Berhasil', 'Profil Sekolah berhasil disimpan!');
+  const handleSaveClick = async () => {
+    try {
+      const res = await api.put('/school-profile', profile);
+      if (res.data.success) {
+        const updated = res.data.data;
+        setProfile(updated);
+        setTempProfile(updated);
+        setEditing(false);
+        swalAlert.success('Berhasil', 'Profil Sekolah berhasil disimpan di database!');
+      } else {
+        swalAlert.error('Gagal', res.data.message || 'Gagal menyimpan profil sekolah.');
+      }
+    } catch (err) {
+      swalAlert.error('Gagal', 'Terjadi kesalahan saat menyimpan profil sekolah.');
+      console.error(err);
+    }
   };
 
   if (loading) {
@@ -265,7 +276,7 @@ function SchoolInfoTab() {
             </div>
           </div>
           <InfoRow label="Name" value={profile.principal_name} editing={editing} onChange={(val) => setProfile({ ...profile, principal_name: val })} />
-          <InfoRow label="Employee ID (NIP)" value={profile.principal_nip} editing={editing} onChange={(val) => setProfile({ ...profile, principal_nip: val })} />
+          <InfoRow label="Nomor Induk Guru (NIG)" value={profile.principal_nip} editing={editing} onChange={(val) => setProfile({ ...profile, principal_nip: val })} />
           <InfoRow label="Position" value={profile.principal_position} editing={editing} onChange={(val) => setProfile({ ...profile, principal_position: val })} />
           <InfoRow label="Appointment Period" value={profile.appointment_period} editing={editing} onChange={(val) => setProfile({ ...profile, appointment_period: val })} />
         </SettingCard>

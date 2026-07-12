@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import StateBlock from '../components/StateBlock';
 import api, { entityService } from '../services/api';
@@ -62,93 +62,122 @@ function DashboardPage() {
 
   const [dashboardStats, setDashboardStats] = useState({});
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      setError('');
+  const fetchStats = useCallback(async () => {
+    setLoading(true);
+    setError('');
 
-      try {
-        if (roleNorm === 'admin' || roleNorm === 'administrator') {
-          // Admin: fetch all entities lists for charts/stats
-          const entries = await Promise.all(
-            Object.entries(endpoints).map(async ([key, endpoint]) => {
-              const response = await entityService.list(endpoint);
-              return [key, response.data.data || []];
-            }),
-          );
-          setData(Object.fromEntries(entries));
+    try {
+      if (roleNorm === 'admin' || roleNorm === 'administrator') {
+        // Admin: fetch all entities lists for charts/stats
+        const entries = await Promise.all(
+          Object.entries(endpoints).map(async ([key, endpoint]) => {
+            const response = await entityService.list(endpoint);
+            return [key, response.data.data || []];
+          }),
+        );
+        setData(Object.fromEntries(entries));
 
-          // Also fetch admin dashboard stats
-          const dbResponse = await api.get('/admin/dashboard');
-          setDashboardStats(dbResponse.data.data || {});
-        } else {
-          // Guru or Siswa: fetch their specific dashboard stats
-          let url = '';
-          if (roleNorm === 'guru') url = '/guru/dashboard';
-          else if (roleNorm === 'siswa') url = '/siswa/dashboard';
+        // Also fetch admin dashboard stats
+        const dbResponse = await api.get('/admin/dashboard');
+        setDashboardStats(dbResponse.data.data || {});
+      } else {
+        // Guru or Siswa: fetch their specific dashboard stats
+        let url = '';
+        if (roleNorm === 'guru') url = '/guru/dashboard';
+        else if (roleNorm === 'siswa') url = '/siswa/dashboard';
 
-          if (url) {
-            const response = await api.get(url);
-            const dashboardData = response.data.data || {};
-            setDashboardStats(dashboardData);
+        if (url) {
+          const response = await api.get(url);
+          const dashboardData = response.data.data || {};
+          setDashboardStats(dashboardData);
 
-            if (roleNorm === 'siswa') {
-              const profile = dashboardData.profil_siswa;
-              if (!profile?.id || !profile?.kelas_id) {
-                setData({ jadwal: [], nilai: [] });
-              } else {
-                const [scheduleResponse, gradeResponse] = await Promise.all([
-                  entityService.list('/jadwal', { kelas_id: profile.kelas_id }),
-                  entityService.list('/nilai', { siswa_id: profile.id }),
-                ]);
-                setData({
-                  jadwal: scheduleResponse.data.data || [],
-                  nilai: gradeResponse.data.data || [],
-                });
-              }
-            } else if (roleNorm === 'guru') {
-              const [teachersResponse, classesResponse] = await Promise.all([
-                entityService.list('/guru'),
-                entityService.list('/kelas')
+          if (roleNorm === 'siswa') {
+            const profile = dashboardData.profil_siswa;
+            if (!profile?.id || !profile?.kelas_id) {
+              setData({ jadwal: [], nilai: [] });
+            } else {
+              const [scheduleResponse, gradeResponse] = await Promise.all([
+                entityService.list('/jadwal', { kelas_id: profile.kelas_id }),
+                entityService.list('/nilai', { siswa_id: profile.id }),
               ]);
-              const teachers = teachersResponse.data.data || [];
-              const teacher = teachers.find((item) =>
-                Number(item.user_id) === Number(userId) || item.nip === userNip
-              );
-              
-              let schedules = [];
-              let students = [];
-              let waliKelasOf = null;
-              
-              if (teacher?.id) {
-                const [scheduleResponse, siswaResponse] = await Promise.all([
-                  entityService.list('/jadwal', { guru_id: teacher.id }),
-                  entityService.list('/siswa', { guru_id: teacher.id })
-                ]);
-                schedules = scheduleResponse.data.data || [];
-                students = siswaResponse.data.data || [];
-                
-                const classes = classesResponse.data.data || [];
-                waliKelasOf = classes.find((c) => c.wali_kelas_id === teacher.id);
-              }
-              
-              setData({ 
-                jadwal: schedules, 
-                siswa: students,
-                kelasPerwalian: waliKelasOf
+              setData({
+                jadwal: scheduleResponse.data.data || [],
+                nilai: gradeResponse.data.data || [],
               });
             }
+          } else if (roleNorm === 'guru') {
+            const [teachersResponse, classesResponse] = await Promise.all([
+              entityService.list('/guru'),
+              entityService.list('/kelas')
+            ]);
+            const teachers = teachersResponse.data.data || [];
+            const teacher = teachers.find((item) =>
+              Number(item.user_id) === Number(userId) || item.nip === userNip
+            );
+            
+            let schedules = [];
+            let students = [];
+            let waliKelasOf = null;
+            
+            if (teacher?.id) {
+              const [scheduleResponse, siswaResponse] = await Promise.all([
+                entityService.list('/jadwal', { guru_id: teacher.id }),
+                entityService.list('/siswa', { guru_id: teacher.id })
+              ]);
+              schedules = scheduleResponse.data.data || [];
+              students = siswaResponse.data.data || [];
+              
+              const classes = classesResponse.data.data || [];
+              waliKelasOf = classes.find((c) => c.wali_kelas_id === teacher.id);
+            }
+            
+            setData({ 
+              jadwal: schedules, 
+              siswa: students,
+              kelasPerwalian: waliKelasOf
+            });
           }
         }
-      } catch (err) {
-        setError(err.response?.data?.message || 'Gagal memuat dashboard');
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      const status = err.response?.status;
+      const code = err.response?.data?.code;
+      const message = err.response?.data?.message;
 
-    fetchStats();
+      if (status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return;
+      }
+
+      if (status === 404 || code === 'ERR_PROFILE_NOT_FOUND') {
+        setError(
+          <span>
+            Profile belum terhubung.
+            <br />
+            Silakan hubungi Administrator.
+          </span>
+        );
+      } else if (status === 500 || code === 'ERR_INTERNAL_SERVER') {
+        setError(
+          <span>
+            Terjadi kesalahan server.
+            <br />
+            Silakan coba beberapa saat lagi.
+          </span>
+        );
+      } else {
+        setError(message || 'Gagal memuat dashboard');
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [roleNorm, userId, userNip]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const stats = useMemo(() => {
     const nilai = data.nilai || [];
