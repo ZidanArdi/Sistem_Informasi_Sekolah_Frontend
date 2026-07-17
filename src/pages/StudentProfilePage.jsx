@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
-import { entityService } from '../services/api';
+import { entityService, getAssetUrl } from '../services/api';
 import StateBlock from '../components/StateBlock';
 
 function StudentProfilePage() {
@@ -112,7 +112,7 @@ function StudentProfilePage() {
           <div className="h-28 w-28 rounded-full bg-gradient-to-tr from-green-500 to-emerald-600 p-0.5 shadow-md mb-4 mt-4 overflow-hidden flex items-center justify-center">
             {student.photo_url ? (
               <img
-                src={`http://localhost:3000${student.photo_url}`}
+                src={getAssetUrl(student.photo_url)}
                 alt={student.nama}
                 className="w-full h-full object-cover rounded-full border-2 border-white"
               />

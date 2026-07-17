@@ -7,6 +7,7 @@ import ForceChangePasswordPage from './pages/ForceChangePasswordPage';
 import StudentProfilePage from './pages/StudentProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
+import api from './services/api';
 
 function SiswaList() {
   const [students, setStudents] = useState([]);
@@ -17,14 +18,11 @@ function SiswaList() {
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/siswa');
-        if (!response.ok) {
-          throw new Error('Gagal mengambil data dari server');
-        }
-        const result = await response.json();
+        const response = await api.get('/siswa');
+        const result = response.data;
         setStudents(result.data || []);
       } catch (err) {
-        setError(err.message);
+        setError(err.response?.data?.message || err.message || 'Gagal mengambil data dari server');
       } finally {
         setLoading(false);
       }
@@ -153,11 +151,8 @@ function SiswaDetail() {
   useEffect(() => {
     const fetchStudentDetail = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/siswa');
-        if (!response.ok) {
-          throw new Error('Gagal mengambil data dari server');
-        }
-        const result = await response.json();
+        const response = await api.get('/siswa');
+        const result = response.data;
         const foundStudent = (result.data || []).find((s) => s.nis === id);
 
         if (!foundStudent) {
@@ -166,7 +161,7 @@ function SiswaDetail() {
 
         setStudent(foundStudent);
       } catch (err) {
-        setError(err.message);
+        setError(err.response?.data?.message || err.message || 'Gagal mengambil data dari server');
       } finally {
         setLoading(false);
       }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import EmptyState from '../common/EmptyState';
+import { getAssetUrl } from '../../services/api';
 
 function DataSiswaTab({ user, data }) {
   const navigate = useNavigate();
@@ -210,7 +211,7 @@ function DataSiswaTab({ user, data }) {
                           <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-green-500/10 to-emerald-500/10 border border-green-200 flex items-center justify-center text-green-700 font-bold text-sm overflow-hidden shadow-sm">
                             {student.photo_url ? (
                               <img
-                                src={`http://localhost:3000${student.photo_url}`}
+                                src={getAssetUrl(student.photo_url)}
                                 alt="Avatar"
                                 className="w-full h-full object-cover"
                               />

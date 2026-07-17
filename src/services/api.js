@@ -1,7 +1,18 @@
 import axios from 'axios';
 
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/+$/, '');
+export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
+export function getAssetUrl(path) {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+
+  return `${API_ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  baseURL: API_BASE_URL,
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
 });
 
 api.interceptors.request.use((config) => {

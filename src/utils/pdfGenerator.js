@@ -122,7 +122,7 @@ export const generateCredentialPDF = async (user, schoolProfile) => {
   doc.text('Please change your password immediately after your first login to secure your account.', 25, 173);
 
   // 6. QR Code Section (Bottom Right)
-  const loginBaseUrl = import.meta.env.VITE_LOGIN_URL || 'http://localhost:5173/login';
+  const loginBaseUrl = import.meta.env.VITE_LOGIN_URL || `${window.location.origin}/login`;
   
   // Safe Fallback Resolution
   let roleParam = '';

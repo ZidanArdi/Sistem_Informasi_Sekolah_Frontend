@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../services/api';
 
 const FALLBACK_PROVINCES = [
   { id: '33', name: 'JAWA TENGAH' },
@@ -48,7 +49,6 @@ function buildOptions(field, lookups) {
 }
 
 function AddressDropdowns({ value, onChange }) {
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
   const [provinces, setProvinces] = useState([]);
   const [regencies, setRegencies] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -56,7 +56,7 @@ function AddressDropdowns({ value, onChange }) {
 
   // 1. Fetch Provinces on Mount (with fail-safe fallback)
   useEffect(() => {
-    fetch(`${apiBase}/regions/provinces.json`)
+    fetch(`${API_BASE_URL}/regions/provinces.json`)
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -66,7 +66,7 @@ function AddressDropdowns({ value, onChange }) {
         console.warn('Menggunakan fallback data provinsi.');
         setProvinces(FALLBACK_PROVINCES);
       });
-  }, [apiBase]);
+  }, []);
 
   // 2. Load Regencies when value.provinsi changes
   useEffect(() => {
@@ -78,7 +78,7 @@ function AddressDropdowns({ value, onChange }) {
     }
     const found = provinces.find((p) => p.name.toLowerCase() === value.provinsi.toLowerCase());
     if (found) {
-      fetch(`${apiBase}/regions/regencies/${found.id}.json`)
+      fetch(`${API_BASE_URL}/regions/regencies/${found.id}.json`)
         .then((res) => {
           if (!res.ok) throw new Error();
           return res.json();
@@ -89,7 +89,7 @@ function AddressDropdowns({ value, onChange }) {
           setRegencies(FALLBACK_REGENCIES[found.id] || []);
         });
     }
-  }, [value.provinsi, provinces, apiBase]);
+  }, [value.provinsi, provinces]);
 
   // 3. Load Districts when value.kabupaten changes
   useEffect(() => {
@@ -101,7 +101,7 @@ function AddressDropdowns({ value, onChange }) {
     }
     const found = regencies.find((r) => r.name.toLowerCase() === value.kabupaten.toLowerCase());
     if (found) {
-      fetch(`${apiBase}/regions/districts/${found.id}.json`)
+      fetch(`${API_BASE_URL}/regions/districts/${found.id}.json`)
         .then((res) => {
           if (!res.ok) throw new Error();
           return res.json();
@@ -112,7 +112,7 @@ function AddressDropdowns({ value, onChange }) {
           setDistricts(FALLBACK_DISTRICTS[found.id] || []);
         });
     }
-  }, [value.kabupaten, regencies, apiBase]);
+  }, [value.kabupaten, regencies]);
 
   // 4. Load Villages when value.kecamatan changes
   useEffect(() => {
@@ -124,7 +124,7 @@ function AddressDropdowns({ value, onChange }) {
     }
     const found = districts.find((d) => d.name.toLowerCase() === value.kecamatan.toLowerCase());
     if (found) {
-      fetch(`${apiBase}/regions/villages/${found.id}.json`)
+      fetch(`${API_BASE_URL}/regions/villages/${found.id}.json`)
         .then((res) => {
           if (!res.ok) throw new Error();
           return res.json();
@@ -135,7 +135,7 @@ function AddressDropdowns({ value, onChange }) {
           setVillages(FALLBACK_VILLAGES[found.id] || []);
         });
     }
-  }, [value.kecamatan, districts, apiBase]);
+  }, [value.kecamatan, districts]);
 
   const selectClass = 'w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10';
 

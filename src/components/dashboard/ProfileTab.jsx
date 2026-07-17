@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api, { authService } from '../../services/api';
+import api, { API_BASE_URL, getAssetUrl } from '../../services/api';
 import swalAlert from '../../utils/swal';
 import StateBlock from '../StateBlock';
 
@@ -51,8 +51,7 @@ function ProfileTab({ user: localUser, roleNorm }) {
   // 1. Fetch Provinces
   useEffect(() => {
     if (!editing) return;
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-    fetch(`${apiBase}/regions/provinces.json`)
+    fetch(`${API_BASE_URL}/regions/provinces.json`)
       .then((res) => res.json())
       .then((data) => setProvinces(data))
       .catch(() => console.warn('Gagal memuat provinsi'));
@@ -66,8 +65,7 @@ function ProfileTab({ user: localUser, roleNorm }) {
     }
     const found = provinces.find((p) => p.name.toLowerCase() === provinsi.toLowerCase());
     if (found) {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-      fetch(`${apiBase}/regions/regencies/${found.id}.json`)
+      fetch(`${API_BASE_URL}/regions/regencies/${found.id}.json`)
         .then((res) => res.json())
         .then((data) => setRegencies(data))
         .catch(() => console.warn('Gagal memuat kabupaten'));
@@ -82,8 +80,7 @@ function ProfileTab({ user: localUser, roleNorm }) {
     }
     const found = regencies.find((r) => r.name.toLowerCase() === kabupaten.toLowerCase());
     if (found) {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-      fetch(`${apiBase}/regions/districts/${found.id}.json`)
+      fetch(`${API_BASE_URL}/regions/districts/${found.id}.json`)
         .then((res) => res.json())
         .then((data) => setDistricts(data))
         .catch(() => console.warn('Gagal memuat kecamatan'));
@@ -98,8 +95,7 @@ function ProfileTab({ user: localUser, roleNorm }) {
     }
     const found = districts.find((d) => d.name.toLowerCase() === kecamatan.toLowerCase());
     if (found) {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-      fetch(`${apiBase}/regions/villages/${found.id}.json`)
+      fetch(`${API_BASE_URL}/regions/villages/${found.id}.json`)
         .then((res) => res.json())
         .then((data) => setVillages(data))
         .catch(() => console.warn('Gagal memuat desa'));
@@ -203,7 +199,7 @@ function ProfileTab({ user: localUser, roleNorm }) {
           <div className="h-28 w-28 rounded-full bg-gradient-to-tr from-green-500 to-emerald-600 p-0.5 shadow-md mb-4 mt-4 relative group overflow-hidden">
             {profile.photo_url ? (
               <img
-                src={`http://localhost:3000${profile.photo_url}`}
+                src={getAssetUrl(profile.photo_url)}
                 alt="Avatar"
                 className="w-full h-full object-cover rounded-full border-2 border-white"
                 onError={(e) => {
