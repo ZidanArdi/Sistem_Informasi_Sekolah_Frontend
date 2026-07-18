@@ -5,6 +5,7 @@ import DashboardPage from './pages/DashboardPage';
 import EntityManagerPage from './pages/EntityManagerPage';
 import ForceChangePasswordPage from './pages/ForceChangePasswordPage';
 import StudentProfilePage from './pages/StudentProfilePage';
+import LandingPage from './pages/LandingPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import api from './services/api';
@@ -252,7 +253,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<SiswaList />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/public/students" element={<SiswaList />} />
         <Route path="/siswa/:id" element={<SiswaDetail />} />
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/register" element={<AuthPage mode="register" />} />
